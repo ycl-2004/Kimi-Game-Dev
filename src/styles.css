@@ -1535,76 +1535,70 @@ kbd {
   animation: review-blink 1s ease-in-out infinite alternate;
 }
 
-.score-save > label {
-  display: block;
-  margin-bottom: 7px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-}
-
-.save-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-}
-
-.save-row input {
-  width: 100%;
+.grade-guide {
   min-width: 0;
-  height: 44px;
-  padding: 0 12px;
-  border: 2px solid var(--ink);
-  border-radius: 9px;
-  background: var(--paper);
-  color: var(--ink);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 14px;
+}
+
+.grade-guide-context {
   font-weight: 700;
-  text-transform: uppercase;
 }
 
-.save-row input[readonly] {
-  opacity: 0.72;
+.grade-guide-rows {
+  padding-top: 5px;
 }
 
-.save-score-button {
-  display: flex;
+.grade-guide-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-width: 132px;
-  padding: 0 13px;
-  border: 2px solid var(--ink);
-  border-radius: 9px;
-  background: var(--yellow);
-  box-shadow: 0 3px 0 var(--ink);
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  min-height: 44px;
+  padding: 6px 8px;
+  border-bottom: 1px dashed rgba(43, 33, 30, 0.28);
+  gap: 10px;
+}
+
+.grade-guide-letter {
+  color: var(--red);
+  font-family: 'Fredoka', sans-serif;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.grade-guide-name {
+  min-width: 0;
   font-size: 11px;
   font-weight: 800;
-  transition: transform 80ms ease, box-shadow 80ms ease;
+  line-height: 1.25;
 }
 
-.save-score-button:active:not(:disabled) {
-  transform: translateY(2px);
-  box-shadow: 0 1px 0 var(--ink);
+.grade-guide-name small {
+  display: block;
+  margin-top: 2px;
+  color: var(--red);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 7px;
+  letter-spacing: 0.1em;
 }
 
-.save-score-button:disabled {
-  background: var(--mint);
+.grade-guide-minimum {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
 }
 
-.save-score-button .icon {
-  font-size: 16px;
+.grade-guide-minimum small {
+  font-size: 8px;
 }
 
-.rank-note {
-  min-height: 14px;
-  margin: 7px 0 0;
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 11px;
-  font-weight: 600;
-  opacity: 0.78;
+.grade-guide-row.is-current {
+  margin: 4px 0;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: var(--yellow);
+  box-shadow: 0 3px 0 var(--ink);
+  transform: rotate(-0.6deg);
 }
 
 .receipt-section-title {
@@ -2511,12 +2505,12 @@ kbd {
     border-right: 1.5px dashed rgba(43, 33, 30, 0.28);
   }
 
-  .receipt-leaderboard {
+  .grade-guide {
     flex: 1 1 auto;
   }
 
-  .receipt-leaderboard .leaderboard-row {
-    min-height: 37px;
+  .grade-guide-row {
+    min-height: 39px;
     padding: 5px 8px;
   }
 
@@ -3273,6 +3267,25 @@ kbd {
 
   .receipt-duration {
     max-width: 155px;
+  }
+
+  .grade-guide-row {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    min-height: 42px;
+    padding: 6px;
+    gap: 7px;
+  }
+
+  .grade-guide-letter {
+    font-size: 22px;
+  }
+
+  .grade-guide-name {
+    font-size: 10px;
+  }
+
+  .grade-guide-minimum {
+    font-size: 11px;
   }
 
   .receipt-choices {

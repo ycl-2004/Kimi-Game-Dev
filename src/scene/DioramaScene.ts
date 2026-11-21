@@ -24,6 +24,8 @@ const DAY_SUN_POSITION = new THREE.Vector3(-14, 24, 16);
 const SUNSET_SUN_POSITION = new THREE.Vector3(-22, 9, 14);
 const CAMERA_TARGET = new THREE.Vector3(0, 0, -5);
 const CAMERA_OFFSET = new THREE.Vector3(16, 18, 32);
+const PORTRAIT_TARGET = new THREE.Vector3(-0.7, -0.5, -4.5);
+const PORTRAIT_OFFSET = new THREE.Vector3(8.5, 20.5, 34);
 
 interface IslandRig {
   visual: IslandVisual;
@@ -80,7 +82,6 @@ export class DioramaScene {
   private readonly parcels = new Map<number, ParcelRig>();
   private readonly flights: FlightAnimation[] = [];
   private readonly bounces: BounceAnimation[] = [];
-  private readonly aimDots: THREE.Mesh[] = [];
   private readonly resizeHandler = (): void => this.resize();
   private readonly projected = new THREE.Vector3();
   private readonly temp = new THREE.Vector3();
@@ -100,6 +101,7 @@ export class DioramaScene {
   private islandArrivalProgress = 0;
   private lightingProgress = -1;
   private cameraFit = 1;
+  private portraitAspect = false;
   private compactLabels = false;
   private readonly activeIslandIds = new Set<number>([0, 1, 2]);
 
@@ -181,15 +183,6 @@ export class DioramaScene {
     this.cat = buildPostalCat(this.factory);
     this.scene.add(this.cat.root);
 
-    for (let i = 0; i < 7; i += 1) {
-      const dot = this.factory.mesh(this.factory.sphere(0.095, 8, 6), PALETTE.yellow, { emissive: PALETTE.yellow, emissiveIntensity: 0.25 });
-      dot.visible = false;
-      dot.castShadow = false;
-      dot.receiveShadow = false;
-      this.scene.add(dot);
-      this.aimDots.push(dot);
-    }
-
     this.particles = new ParticleSystem(this.factory, this.softwareRenderer ? 48 : this.mobile ? 72 : 140);
     this.scene.add(this.particles.root);
 
@@ -214,7 +207,7 @@ export class DioramaScene {
   update(dt: number, snapshot: GameSnapshot): void {
     const delta = THREE.MathUtils.clamp(Number.isFinite(dt) ? dt : 0, 0, 0.5);
     if (this.lastMode !== snapshot.mode) {
-      const beginsFromBoundary = this.lastMode === 'title' || this.lastMode === 'ended';
+      const beginsFromBoundary = this.lastMode === 'title' || this.lastMode === 'tutorial' || this.lastMode === 'ended';
       if (this.lastMode !== null && (beginsFromBoundary || snapshot.mode === 'title')) this.resetTransient();
       this.lastMode = snapshot.mode;
     }
@@ -233,7 +226,6 @@ export class DioramaScene {
     this.updateFlights(delta);
     this.updateBounces(delta);
     this.updateCat(delta, snapshot);
-    this.updateAim(snapshot);
     this.particles.update(delta);
 
     const feverTarget = snapshot.feverActive ? 2.5 + Math.sin(this.timeline * 6) * 0.35 : 0;
@@ -339,8 +331,9 @@ export class DioramaScene {
     this.labelHeight = this.labelLayer.clientHeight || height;
     this.renderer.setSize(width, height, false);
     this.camera.aspect = aspect;
-    this.camera.fov = aspect < 0.75 ? 45 : 39;
-    this.cameraFit = Math.max(1, 0.92 / aspect);
+    this.portraitAspect = aspect < 0.78;
+    this.camera.fov = this.portraitAspect ? 45 : 39;
+    this.cameraFit = this.portraitAspect ? Math.max(1, 0.82 / aspect) : Math.max(1, 0.92 / aspect);
     this.updateCamera();
     this.camera.updateProjectionMatrix();
     this.updateLabelLayout();
@@ -352,7 +345,7 @@ export class DioramaScene {
     for (const id of snapshot.activeIslandIds) this.activeIslandIds.add(id);
 
     const transition = this.stageTwo ? snapshot.stageTransition : null;
-    const duration = Math.max(0.001, transition?.duration ?? 1);
+    const duration = Math.min(2.2, Math.max(0.001, transition?.duration ?? 1));
     const linearProgress = this.stageTwo
       ? transition ? THREE.MathUtils.clamp(transition.elapsed / duration, 0, 1) : 1
       : 0;
@@ -372,18 +365,28 @@ export class DioramaScene {
   }
 
   private updateCamera(): void {
-    const dolly = 1 + this.stageProgress * 0.1;
-    this.camera.position.copy(CAMERA_TARGET).addScaledVector(CAMERA_OFFSET, this.cameraFit * dolly);
-    this.camera.lookAt(CAMERA_TARGET);
+    const baseTarget = this.portraitAspect ? PORTRAIT_TARGET : CAMERA_TARGET;
+    const baseOffset = this.portraitAspect ? PORTRAIT_OFFSET : CAMERA_OFFSET;
+    this.temp.copy(baseTarget);
+    if (!this.portraitAspect) {
+      this.temp.x += 0.9 + this.stageProgress * 0.6;
+    }
+    const dolly = 1 + this.stageProgress * (this.portraitAspect ? 0.14 : 0.12);
+    this.camera.position.copy(this.temp).addScaledVector(baseOffset, this.cameraFit * dolly);
+    this.camera.lookAt(this.temp);
     this.camera.updateMatrixWorld();
   }
 
   private updateLabelLayout(): void {
     const mobile = this.labelWidth < 600;
     for (const rig of this.islands.values()) {
+      const { id, name, short, inputs } = rig.visual.definition;
+      const key = inputs.join('+');
+      rig.label.textContent = this.compactLabels && mobile ? `${key} • ${short}` : `${key} • ${name}`;
       rig.label.style.fontSize = this.compactLabels ? (mobile ? '9px' : '11px') : mobile ? '10px' : '13px';
-      rig.label.style.padding = this.compactLabels ? (mobile ? '4px 6px' : '5px 9px') : mobile ? '5px 9px' : '7px 12px';
-      rig.label.style.borderWidth = mobile ? '1px' : '2px';
+      rig.label.style.padding = this.compactLabels ? (mobile ? '3px 6px' : '5px 9px') : mobile ? '5px 9px' : '7px 12px';
+      rig.label.style.borderWidth = mobile ? '1.5px' : '2px';
+      rig.label.dataset.islandId = String(id);
     }
   }
 
@@ -585,26 +588,6 @@ export class DioramaScene {
     this.cat.head.rotation.z = this.catMiss ? Math.sin(this.catActionAge * 24) * Math.exp(-this.catActionAge * 4) * 0.32 : 0;
   }
 
-  private updateAim(snapshot: GameSnapshot): void {
-    const charging = snapshot.charging;
-    if (!charging || !this.islands.has(charging.islandId)) {
-      this.aimDots.forEach((dot) => { dot.visible = false; });
-      return;
-    }
-    const end = this.predictLanding(charging.islandId, this.timeline + GAMEPLAY.flightDuration, 'PERFECT');
-    const arcHeight = 2.5 + charging.power * 3;
-    const origin = snapshot.frontParcel
-      ? (this.parcels.get(snapshot.frontParcel.id)?.visual.group.position ?? LAUNCH_POSITION)
-      : LAUNCH_POSITION;
-    this.aimDots.forEach((dot, index) => {
-      const progress = ((index + 1) / (this.aimDots.length + 1)) * 0.32;
-      dot.position.lerpVectors(origin, end, progress);
-      dot.position.y += 4 * arcHeight * progress * (1 - progress);
-      dot.scale.setScalar(0.75 + index * 0.055 + Math.sin(this.timeline * 7 + index) * 0.08);
-      dot.visible = true;
-    });
-  }
-
   private updateLabels(targetIslandId: number | null): void {
     this.camera.updateMatrixWorld();
     for (const rig of this.islands.values()) {
@@ -669,13 +652,16 @@ export class DioramaScene {
     this.catActionAge = 10;
     this.catCelebration = false;
     this.catMiss = false;
-    this.aimDots.forEach((dot) => { dot.visible = false; });
   }
 
   private createIslandLabel(name: string, id: number, color: string): HTMLDivElement {
     const label = document.createElement('div');
     label.className = 'island-label';
-    const inputs = ISLANDS.find((definition) => definition.id === id)?.inputs.join('+') ?? String(id + 1);
+    const islandDef = ISLANDS.find((definition) => definition.id === id);
+    const inputsList = islandDef?.inputs ?? [String(id + 1)];
+    const inputs = inputsList.join('+');
+    if (inputsList.length === 1) label.dataset.input = inputsList[0];
+    else label.dataset.chord = inputsList.join(',');
     label.textContent = `${inputs} • ${name}`;
     label.style.position = 'absolute';
     label.style.left = '0';
@@ -689,7 +675,6 @@ export class DioramaScene {
     label.style.fontFamily = 'Fredoka, sans-serif';
     label.style.fontWeight = '700';
     label.style.letterSpacing = '0.02em';
-    label.style.pointerEvents = 'none';
     label.style.willChange = 'transform';
     label.style.borderBottomColor = color;
     this.labelLayer.appendChild(label);

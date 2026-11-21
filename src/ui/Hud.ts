@@ -1,5 +1,6 @@
-import { CHORDS, FEVER, GAMEPLAY, ISLANDS } from '../config/gameConfig';
-import type { GameSnapshot, ParcelState, ResultEvent } from '../game/types';
+import { CHORDS, FEVER, FULL_RUN_LEVEL_IDS, GAMEPLAY, ISLANDS, LEVELS } from '../config/gameConfig';
+import type { GameSnapshot, LevelDefinition, ParcelState, ResultEvent } from '../game/types';
+import { judge } from '../game/PowerBar';
 import { icon, owlPortrait } from './icons';
 
 function required<T extends Element>(root: ParentNode, selector: string): T {
@@ -37,21 +38,20 @@ export class Hud {
   private readonly scoreValue: HTMLElement;
   private readonly comboValue: HTMLElement;
   private readonly multiplierValue: HTMLElement;
+  private readonly levelValue: HTMLElement;
+  private readonly levelBanner: HTMLElement;
   private readonly owlBubble: HTMLElement;
   private readonly powerBar: HTMLElement;
-  private readonly greenBand: HTMLElement;
-  private readonly goldBand: HTMLElement;
-  private readonly needle: HTMLElement;
   private readonly powerHint: HTMLElement;
   private readonly zoneLabel: HTMLElement;
   private readonly feverButton: HTMLButtonElement;
-  private readonly feverFill: HTMLElement;
   private readonly feverStatus: HTMLElement;
   private readonly consoleButtons: HTMLButtonElement[];
   private readonly chordButtons: HTMLButtonElement[];
   private readonly consoleGuidance: HTMLElement;
   private readonly resultToast: HTMLElement;
   private resultTimer = 0;
+  private levelBannerTimer = 0;
   private lastMultiplier = 1;
   private lastOwlText = '';
   private soundEnabled = true;
@@ -66,71 +66,86 @@ export class Hud {
     this.element.setAttribute('aria-label', 'Gameplay HUD');
     this.element.setAttribute('aria-hidden', 'true');
     this.element.innerHTML = `
-      <div class="owl-cluster">
-        <div class="owl-badge">${owlPortrait()}</div>
-        <div class="owl-bubble" role="status">Shift starts! Hold and release!</div>
-      </div>
-
-      <div class="parcel-ticket">
-        <div class="ticket-rail"><span></span><span></span></div>
-        <div class="ticket-heading"><span>NEXT DELIVERY</span><span class="ticket-key">1</span></div>
-        <div class="ticket-main">
-          <div class="ticket-destination-icon"></div>
-          <div class="ticket-copy"><strong class="ticket-island">CAKE ISLE</strong><span class="ticket-type">NORMAL</span></div>
-          <div class="express-timer" hidden><span>6</span><small>s</small></div>
-        </div>
-        <div class="ticket-footer"><span class="ticket-footer-label">NEXT UP</span><div class="ticket-next"></div></div>
-      </div>
-
-      <div class="hud-pills" aria-label="Run statistics">
-        <div class="hud-pill time-pill">${icon('clock')}<span class="pill-label">TIME</span><strong class="time-value">0:30</strong></div>
-        <div class="hud-pill score-pill"><span class="pill-label">SCORE</span><strong class="score-value">0</strong></div>
-        <div class="hud-pill combo-pill"><strong class="combo-value">x0</strong><span class="pill-label">COMBO</span></div>
-        <div class="hud-pill multiplier-pill"><strong class="multiplier-value">x1</strong><span class="pill-label">POINTS</span></div>
-      </div>
-
-      <aside class="power-wrap" aria-label="Throw power">
-        <div class="power-caption"><span>POWER</span>${icon('feather')}</div>
-        <div class="power-bar">
-          <span class="power-number power-max">100</span>
-          <div class="power-track">
-            <div class="power-green"></div>
-            <div class="power-gold"><span>PERFECT</span></div>
-            <div class="power-needle"><span></span></div>
+      <div class="hud-top">
+        <div class="hud-top-row">
+          <div class="owl-cluster">
+            <div class="owl-badge">${owlPortrait()}</div>
+            <div class="owl-bubble" role="status">Shift starts! Hold and release!</div>
           </div>
-          <span class="power-number power-min">0</span>
-          <span class="power-label power-weak">TOO WEAK</span>
-          <span class="power-label power-strong">TOO STRONG</span>
+
+          <div class="hud-pill level-pill" aria-label="Current stage">
+            <span class="pill-label">STAGE</span><strong class="level-value">1 · SLOW</strong>
+          </div>
+
+          <div class="hud-pills" aria-label="Run statistics">
+            <div class="hud-pill time-pill">${icon('clock')}<span class="pill-label">TIME</span><strong class="time-value">0:30</strong></div>
+            <div class="hud-pill score-pill"><span class="pill-label">SCORE</span><strong class="score-value">0</strong></div>
+            <div class="hud-pill combo-pill"><strong class="combo-value">x0</strong><span class="pill-label">COMBO</span></div>
+            <div class="hud-pill multiplier-pill"><strong class="multiplier-value">x1</strong><span class="pill-label">POINTS</span></div>
+          </div>
         </div>
-        <div class="zone-label">CAKE ISLE</div>
-        <div class="power-hint">HOLD TO CHARGE</div>
-      </aside>
 
-      <button class="fever-tube" type="button" aria-label="Fever meter, not ready" disabled>
-        <span class="fever-title">FEVER</span>
-        <span class="fever-glass"><span class="fever-liquid"></span><i></i><i></i><i></i></span>
-        <span class="fever-status">0 / ${FEVER.deliveriesToFill}</span>
-        <span class="fever-key">SPACE</span>
-      </button>
+        <div class="hud-ticket-row">
+          <div class="parcel-ticket">
+            <div class="ticket-rail"><span></span><span></span></div>
+            <div class="ticket-heading"><span>NEXT DELIVERY</span><span class="ticket-key">1</span></div>
+            <div class="ticket-main">
+              <div class="ticket-destination-icon"></div>
+              <div class="ticket-copy"><strong class="ticket-island">CAKE ISLE</strong><span class="ticket-type">NORMAL</span></div>
+              <div class="express-timer" hidden><span>6</span><small>s</small></div>
+            </div>
+            <div class="ticket-footer"><span class="ticket-footer-label">NEXT UP</span><div class="ticket-next"></div></div>
+          </div>
+          <button class="round-button hud-sound" type="button" aria-label="Mute sound" aria-pressed="true">${icon('sound')}</button>
+        </div>
+      </div>
 
-      <button class="round-button hud-sound" type="button" aria-label="Mute sound" aria-pressed="true">${icon('sound')}</button>
+      <div class="level-banner" role="status" aria-live="polite"></div>
       <div class="result-toast" role="status" aria-live="polite"></div>
 
-      <div class="console-wrap">
-        <div class="console-label"><span class="console-guidance">INCOMING…</span></div>
-        <div class="console-buttons">
-          ${CONSOLE_ISLANDS.map((island) => `
-            <button class="console-button console-${island.id}" type="button" data-input="${island.inputs[0]}" style="--island-color:${island.color}" aria-label="Hold for ${island.name}">
-              <span class="console-key">${island.inputs.join('+')}</span>
-              ${icon(island.icon)}
-              <span class="console-name">${island.short}</span>
-              <span class="console-action">HOLD</span>
-            </button>`).join('')}
-          ${CHORD_ISLANDS.map((island) => `
-            <button class="chord-bridge" type="button" data-chord="${island.inputs.join(',')}" data-island="${island.id}" aria-label="Hold ${island.inputs.join('+')} for ${island.name}">
-              <span class="console-key">${island.inputs.join('+')}</span>
-              ${icon(island.icon)}
-            </button>`).join('')}
+      <div class="hud-dock">
+        <div class="hud-gauges">
+          <aside class="power-wrap" aria-label="Throw power">
+            <div class="power-caption"><span>POWER</span>${icon('feather')}</div>
+            <div class="power-bar">
+              <span class="power-number power-max">100</span>
+              <div class="power-track">
+                <div class="power-green"></div>
+                <div class="power-gold"><span>PERFECT</span></div>
+                <div class="power-needle"><span></span></div>
+              </div>
+              <span class="power-number power-min">0</span>
+              <span class="power-label power-weak">TOO WEAK</span>
+              <span class="power-label power-strong">TOO STRONG</span>
+            </div>
+            <div class="zone-label">CAKE ISLE</div>
+            <div class="power-hint">HOLD TO CHARGE</div>
+          </aside>
+
+          <button class="fever-tube" type="button" aria-label="Fever meter, not ready" disabled>
+            <span class="fever-title">FEVER</span>
+            <span class="fever-glass"><span class="fever-liquid"></span><i></i><i></i><i></i></span>
+            <span class="fever-status">0 / ${FEVER.deliveriesToFill}</span>
+            <span class="fever-key">SPACE</span>
+          </button>
+        </div>
+
+        <div class="console-wrap">
+          <div class="console-label"><span class="console-guidance">INCOMING…</span></div>
+          <div class="console-buttons">
+            ${CONSOLE_ISLANDS.map((island) => `
+              <button class="console-button console-${island.id}" type="button" data-input="${island.inputs[0]}" style="--island-color:${island.color}" aria-label="Hold for ${island.name}">
+                <span class="console-key">${island.inputs.join('+')}</span>
+                ${icon(island.icon)}
+                <span class="console-name">${island.short}</span>
+                <span class="console-action">HOLD</span>
+              </button>`).join('')}
+            ${CHORD_ISLANDS.map((island) => `
+              <button class="chord-bridge" type="button" data-chord="${island.inputs.join(',')}" data-island="${island.id}" style="--island-color:${island.color}" aria-label="Hold ${island.inputs.join('+')} for ${island.name}">
+                <span class="console-key">${island.inputs.join('+')}</span>
+                ${icon(island.icon)}
+              </button>`).join('')}
+          </div>
         </div>
       </div>`;
 
@@ -146,15 +161,13 @@ export class Hud {
     this.scoreValue = required(this.element, '.score-value');
     this.comboValue = required(this.element, '.combo-value');
     this.multiplierValue = required(this.element, '.multiplier-value');
+    this.levelValue = required(this.element, '.level-value');
+    this.levelBanner = required(this.element, '.level-banner');
     this.owlBubble = required(this.element, '.owl-bubble');
     this.powerBar = required(this.element, '.power-bar');
-    this.greenBand = required(this.element, '.power-green');
-    this.goldBand = required(this.element, '.power-gold');
-    this.needle = required(this.element, '.power-needle');
     this.powerHint = required(this.element, '.power-hint');
     this.zoneLabel = required(this.element, '.zone-label');
     this.feverButton = required(this.element, '.fever-tube');
-    this.feverFill = required(this.element, '.fever-liquid');
     this.feverStatus = required(this.element, '.fever-status');
     this.consoleButtons = Array.from(this.element.querySelectorAll<HTMLButtonElement>('.console-button'));
     this.chordButtons = Array.from(this.element.querySelectorAll<HTMLButtonElement>('.chord-bridge'));
@@ -177,10 +190,13 @@ export class Hud {
 
   update(snapshot: GameSnapshot): void {
     const remaining = Math.max(0, Math.ceil(snapshot.remaining));
+    const levelIndex = FULL_RUN_LEVEL_IDS.indexOf(snapshot.levelId);
+    const levelDef = LEVELS[levelIndex];
     setText(this.timeValue, `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`);
     setText(this.scoreValue, Math.round(snapshot.score).toLocaleString('en-US'));
     setText(this.comboValue, `x${snapshot.combo}`);
     setText(this.multiplierValue, `x${snapshot.multiplier}`);
+    setText(this.levelValue, `${levelIndex >= 0 ? levelIndex + 1 : 1} · ${(levelDef?.name ?? snapshot.levelId).toUpperCase()}`);
     this.element.classList.toggle('is-urgent', remaining <= 10 && snapshot.mode === 'playing');
 
     if (snapshot.multiplier !== this.lastMultiplier) {
@@ -235,6 +251,24 @@ export class Hud {
       button.disabled = snapshot.stageTransition !== null;
       button.setAttribute('aria-pressed', String(held));
     });
+  }
+
+  showLevelBanner(level: LevelDefinition): void {
+    window.clearTimeout(this.levelBannerTimer);
+    const index = FULL_RUN_LEVEL_IDS.indexOf(level.id);
+    const num = index >= 0 ? index + 1 : 1;
+    const sub = level.id === 'slow'
+      ? 'HOLD & RELEASE IN THE GOLD ZONE'
+      : level.id === 'normal'
+        ? 'FASTER BELT · FRAGILE & EXPRESS PARCELS'
+        : 'SUNSET SHIFT · 5 ISLANDS & 2-KEY CHORDS';
+    this.levelBanner.innerHTML = `<strong>LEVEL ${num} · ${level.name.toUpperCase()}</strong><span>${sub}</span>`;
+    this.levelBanner.classList.remove('is-visible');
+    void this.levelBanner.offsetWidth;
+    this.levelBanner.classList.add('is-visible');
+    this.levelBannerTimer = window.setTimeout(() => {
+      this.levelBanner.classList.remove('is-visible');
+    }, 1850);
   }
 
   setVisible(visible: boolean): void {
@@ -351,12 +385,24 @@ export class Hud {
 
   private updatePower(snapshot: GameSnapshot, chordHint: string | null): void {
     const { zone } = snapshot;
-    this.greenBand.style.bottom = percent(zone.center - zone.greenHalfWidth);
-    this.greenBand.style.height = percent(zone.greenHalfWidth * 2);
-    this.goldBand.style.bottom = percent(zone.center - zone.goldHalfWidth);
-    this.goldBand.style.height = percent(zone.goldHalfWidth * 2);
-    this.needle.style.bottom = percent(snapshot.charging?.power ?? 0);
+    const greenStart = Math.max(0, zone.center - zone.greenHalfWidth);
+    const greenEnd = Math.min(1, zone.center + zone.greenHalfWidth);
+    const goldStart = Math.max(0, zone.center - zone.goldHalfWidth);
+    const goldEnd = Math.min(1, zone.center + zone.goldHalfWidth);
+    this.powerBar.style.setProperty('--green-start', percent(greenStart));
+    this.powerBar.style.setProperty('--green-size', percent(greenEnd - greenStart));
+    this.powerBar.style.setProperty('--gold-start', percent(goldStart));
+    this.powerBar.style.setProperty('--gold-size', percent(goldEnd - goldStart));
+    this.powerBar.style.setProperty('--needle-pos', percent(snapshot.charging?.power ?? 0));
     this.powerBar.classList.toggle('is-charging', snapshot.charging !== null);
+
+    if (snapshot.charging) {
+      const verdict = judge(snapshot.charging.power, zone);
+      this.powerBar.dataset.zoneState = verdict === 'PERFECT' ? 'perfect' : verdict === 'GOOD' ? 'good' : 'miss';
+    } else {
+      this.powerBar.dataset.zoneState = 'idle';
+    }
+
     const hint = chordHint ?? (snapshot.charging ? 'RELEASE TO THROW' : snapshot.parcelReady ? 'HOLD TO CHARGE' : 'INCOMING…');
     setText(this.powerHint, hint);
     this.powerHint.classList.toggle('is-active', snapshot.charging !== null);
@@ -368,7 +414,7 @@ export class Hud {
   private updateFever(snapshot: GameSnapshot): void {
     const rawProgress = Math.max(0, Math.min(1, snapshot.feverProgress));
     const progress = snapshot.feverActive ? snapshot.feverRemaining / FEVER.duration : snapshot.feverFilled ? 1 : rawProgress;
-    this.feverFill.style.height = percent(progress);
+    this.feverButton.style.setProperty('--fever-progress', percent(progress));
     this.feverButton.classList.toggle('is-ready', snapshot.feverFilled && !snapshot.feverActive);
     this.feverButton.classList.toggle('is-active', snapshot.feverActive);
     this.feverButton.disabled = !snapshot.feverFilled || snapshot.feverActive;

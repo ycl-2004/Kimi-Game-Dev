@@ -73,6 +73,7 @@ export interface TutorialSnapshot {
   elapsed: number;
   duration: number;
   cardIndex: number;
+  totalCards: number;
 }
 
 export interface ParcelState {

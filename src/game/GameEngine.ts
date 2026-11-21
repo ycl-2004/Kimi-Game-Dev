@@ -4,7 +4,6 @@ import {
   FEATURES,
   FEVER,
   FULL_RUN_LEVEL_IDS,
-  FULL_RUN_TOTAL_DURATION,
   GAMEPLAY,
   ISLANDS,
   LEVEL_DEFINITIONS,
@@ -65,7 +64,9 @@ export class GameEngine {
   private currentLevelId: LevelId = 'slow';
   private clock = 0;
   private runTime = 0;
+  private shiftElapsed = 0;
   private tutorialElapsed: number | null = null;
+  private tutorialCardIndex = 0;
   private transition: { elapsed: number; definition: TransitionDefinition } | null = null;
   private queue: ParcelState[] = [];
   private nextParcelId = 1;
@@ -99,6 +100,7 @@ export class GameEngine {
     this.resetRun('full');
     this.mode = 'tutorial';
     this.tutorialElapsed = 0;
+    this.tutorialCardIndex = 0;
     this.seedInitialQueue();
     this.prepareFrontParcel();
     this.onTutorialStart(this.getTutorialSnapshot() as TutorialSnapshot);
@@ -117,10 +119,32 @@ export class GameEngine {
     this.emitSnapshot();
   }
 
+  nextTutorialStep(): void {
+    if (this.mode !== 'tutorial') return;
+    if (this.tutorialCardIndex < TUTORIAL.cards.length - 1) {
+      this.tutorialCardIndex += 1;
+      this.emitSnapshot();
+      return;
+    }
+    this.skipTutorial();
+  }
+
+  prevTutorialStep(): void {
+    if (this.mode !== 'tutorial' || this.tutorialCardIndex <= 0) return;
+    this.tutorialCardIndex -= 1;
+    this.emitSnapshot();
+  }
+
   skipTutorial(): void {
     if (this.mode !== 'tutorial') return;
     this.resetDemoProgress();
     this.beginLevel(FULL_RUN_LEVEL_IDS[0]);
+    this.emitSnapshot();
+  }
+
+  confirmTransition(): void {
+    if (this.mode !== 'transition' || !this.transition) return;
+    this.beginLevel(this.transition.definition.nextLevelId);
     this.emitSnapshot();
   }
 
@@ -149,37 +173,22 @@ export class GameEngine {
       }
 
       if (this.mode === 'tutorial') {
-        const elapsed = this.tutorialElapsed ?? 0;
-        const step = Math.min(updateRemaining, Math.max(0, TUTORIAL.duration - elapsed));
-        this.tutorialElapsed = elapsed + step;
-        this.updateActiveParcels(step);
-        this.updateAttractAi(step);
-        updateRemaining -= step;
-
-        if (this.tutorialElapsed >= TUTORIAL.duration - TIME_EPSILON) {
-          this.resetDemoProgress();
-          this.beginLevel(FULL_RUN_LEVEL_IDS[0]);
-        }
-        continue;
+        this.tutorialElapsed = (this.tutorialElapsed ?? 0) + updateRemaining;
+        this.updateActiveParcels(updateRemaining);
+        this.updateAttractAi(updateRemaining);
+        break;
       }
 
       if (this.mode === 'transition' && this.transition) {
-        const step = Math.min(
-          updateRemaining,
-          Math.max(0, this.transition.definition.duration - this.transition.elapsed),
-        );
-        this.transition.elapsed += step;
-        updateRemaining -= step;
-
-        if (this.transition.elapsed >= this.transition.definition.duration - TIME_EPSILON) {
-          this.beginLevel(this.transition.definition.nextLevelId);
-        }
-        continue;
+        this.transition.elapsed += updateRemaining;
+        this.shiftElapsed += updateRemaining;
+        break;
       }
 
       if (this.mode === 'playing') {
         const step = Math.min(updateRemaining, Math.max(0, this.level.duration - this.runTime));
         this.runTime += step;
+        this.shiftElapsed += step;
         this.updateActiveParcels(step);
         updateRemaining -= step;
 
@@ -280,7 +289,9 @@ export class GameEngine {
     this.runKind = runKind;
     this.currentLevelId = FULL_RUN_LEVEL_IDS[0];
     this.runTime = 0;
+    this.shiftElapsed = 0;
     this.tutorialElapsed = null;
+    this.tutorialCardIndex = 0;
     this.transition = null;
     this.queue = [];
     this.nextParcelId = 1;
@@ -328,7 +339,11 @@ export class GameEngine {
     this.clearParcelState();
     this.completedScriptedFirsts.clear();
     this.selectedIslandId = this.level.islandIds[0];
-    this.owlText = OWL_LINES.start;
+    this.owlText = levelId === 'slow'
+      ? OWL_LINES.start
+      : levelId === 'normal'
+        ? `${OWL_LINES.speedup} Watch for Fragile & Express!`
+        : `${OWL_LINES.rush} Hold two buttons for chords!`;
     this.onLevelStart(this.level);
     this.seedInitialQueue();
     this.prepareFrontParcel();
@@ -370,14 +385,11 @@ export class GameEngine {
 
   private getTutorialSnapshot(): TutorialSnapshot | null {
     if (this.tutorialElapsed === null) return null;
-    const cardIndex = Math.min(
-      TUTORIAL.cards.length - 1,
-      Math.floor((this.tutorialElapsed / TUTORIAL.duration) * TUTORIAL.cards.length),
-    );
     return {
       elapsed: this.tutorialElapsed,
       duration: TUTORIAL.duration,
-      cardIndex,
+      cardIndex: this.tutorialCardIndex,
+      totalCards: TUTORIAL.cards.length,
     };
   }
 
@@ -776,9 +788,7 @@ export class GameEngine {
 
   private createRunResult(): RunResult {
     const scoringDuration = this.runKind === 'full' ? TOTAL_SCORING_DURATION : this.level.duration;
-    const totalDuration = this.runKind === 'full'
-      ? FULL_RUN_TOTAL_DURATION
-      : scoringDuration + (this.level.practiceTransition?.duration ?? 0);
+    const totalDuration = Math.max(scoringDuration, this.shiftElapsed);
     return {
       stats: this.getStats(),
       runKind: this.runKind,

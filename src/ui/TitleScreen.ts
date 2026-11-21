@@ -27,7 +27,7 @@ export class TitleScreen {
         <button class="start-button primary-button" type="button">
           <span>START SHIFT</span>${icon('arrow')}
         </button>
-        <p class="start-hint"><kbd>ENTER</kbd> OR TAP TO CLOCK IN</p>
+        <p class="start-hint"><span class="key-hint"><kbd>ENTER</kbd> OR </span>TAP TO CLOCK IN</p>
       </div>
       <div class="demo-status"><span class="live-dot"></span> LIVE DEMO <i>•</i> AUTO-PLAYING</div>
       <div class="title-tools">

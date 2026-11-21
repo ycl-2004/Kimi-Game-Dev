@@ -1,5 +1,6 @@
 import { TUTORIAL } from '../config/gameConfig';
 import type { GameSnapshot } from '../game/types';
+import { icon } from './icons';
 
 function required<T extends Element>(root: ParentNode, selector: string): T {
   const element = root.querySelector<T>(selector);
@@ -9,6 +10,8 @@ function required<T extends Element>(root: ParentNode, selector: string): T {
 
 export class Tutorial {
   readonly element: HTMLElement;
+  onNext: () => void = () => undefined;
+  onPrev: () => void = () => undefined;
   onSkip: () => void = () => undefined;
 
   private readonly image: HTMLImageElement;
@@ -18,7 +21,11 @@ export class Tutorial {
   private readonly counter: HTMLElement;
   private readonly progress: HTMLElement;
   private readonly progressFill: HTMLElement;
-  private readonly time: HTMLElement;
+  private readonly dots: HTMLElement;
+  private readonly backButton: HTMLButtonElement;
+  private readonly skipButton: HTMLButtonElement;
+  private readonly nextButton: HTMLButtonElement;
+  private readonly nextLabel: HTMLElement;
   private currentCard = -1;
   private visible = false;
 
@@ -31,6 +38,9 @@ export class Tutorial {
       <div class="tutorial-shell">
         <header class="tutorial-header">
           <span>CLOUD POST! <i>/</i> FLIGHT SCHOOL</span>
+          <div class="tutorial-dots" aria-hidden="true">
+            ${TUTORIAL.cards.map((_, i) => `<span class="tutorial-dot" data-step="${i}"></span>`).join('')}
+          </div>
           <span class="tutorial-counter">01 / ${String(TUTORIAL.cards.length).padStart(2, '0')}</span>
         </header>
         <div class="tutorial-card">
@@ -43,15 +53,16 @@ export class Tutorial {
             <p class="tutorial-description"></p>
           </div>
         </div>
+        <div class="tutorial-progress" role="progressbar" aria-label="Tutorial progress" aria-valuemin="1" aria-valuemax="${TUTORIAL.cards.length}" aria-valuenow="1">
+          <span class="tutorial-progress-fill"></span>
+        </div>
         <footer class="tutorial-footer">
-          <div class="tutorial-timing">
-            <div class="tutorial-progress" role="progressbar" aria-label="Tutorial progress" aria-valuemin="0">
-              <span class="tutorial-progress-fill"></span>
-            </div>
-            <span class="tutorial-time">5s</span>
+          <div class="tutorial-secondary">
+            <button class="tutorial-back" type="button" aria-label="Previous step" hidden>BACK</button>
+            <button class="tutorial-skip" type="button" aria-label="Skip tutorial">SKIP</button>
           </div>
-          <button class="tutorial-skip" type="button" aria-label="Skip tutorial">
-            <span>SKIP</span><kbd>ENTER</kbd>
+          <button class="tutorial-next primary-button" type="button">
+            <span class="tutorial-next-label">NEXT</span>${icon('arrow')}<kbd class="key-hint">ENTER</kbd>
           </button>
         </footer>
       </div>`;
@@ -63,14 +74,24 @@ export class Tutorial {
     this.counter = required(this.element, '.tutorial-counter');
     this.progress = required(this.element, '.tutorial-progress');
     this.progressFill = required(this.element, '.tutorial-progress-fill');
-    this.time = required(this.element, '.tutorial-time');
+    this.dots = required(this.element, '.tutorial-dots');
+    this.backButton = required(this.element, '.tutorial-back');
+    this.skipButton = required(this.element, '.tutorial-skip');
+    this.nextButton = required(this.element, '.tutorial-next');
+    this.nextLabel = required(this.element, '.tutorial-next-label');
 
     TUTORIAL.cards.forEach((card) => {
       const preload = new Image();
       preload.src = card.image;
     });
 
-    this.element.addEventListener('click', () => this.skip());
+    this.nextButton.addEventListener('click', () => {
+      if (this.visible) this.onNext();
+    });
+    this.backButton.addEventListener('click', () => {
+      if (this.visible) this.onPrev();
+    });
+    this.skipButton.addEventListener('click', () => this.skip());
     window.addEventListener('keydown', this.handleKeyDown);
   }
 
@@ -80,7 +101,6 @@ export class Tutorial {
     this.element.setAttribute('aria-hidden', 'false');
     this.currentCard = -1;
     this.renderCard(0);
-    this.updateProgress(0, TUTORIAL.duration);
   }
 
   hide(): void {
@@ -91,19 +111,16 @@ export class Tutorial {
 
   update(snapshot: GameSnapshot): void {
     if (!this.visible || !snapshot.tutorial) return;
-    const { elapsed, duration } = snapshot.tutorial;
-    const safeDuration = Math.max(0.001, duration);
-    const progress = Math.min(1, Math.max(0, elapsed / safeDuration));
-    const index = Math.min(TUTORIAL.cards.length - 1, Math.floor(progress * TUTORIAL.cards.length));
-    this.renderCard(index);
-    this.updateProgress(elapsed, safeDuration);
+    this.renderCard(snapshot.tutorial.cardIndex);
   }
 
   private renderCard(index: number): void {
-    if (index === this.currentCard || index < 0) return;
+    if (index === this.currentCard || index < 0 || index >= TUTORIAL.cards.length) return;
     const card = TUTORIAL.cards[index];
     if (!card) return;
     this.currentCard = index;
+    const isLast = index === TUTORIAL.cards.length - 1;
+
     this.image.src = card.image;
     this.image.alt = `${card.title} illustration`;
     this.step.textContent = `STEP ${String(index + 1).padStart(2, '0')}`;
@@ -111,19 +128,23 @@ export class Tutorial {
     this.description.textContent = card.description;
     this.counter.textContent = `${String(index + 1).padStart(2, '0')} / ${String(TUTORIAL.cards.length).padStart(2, '0')}`;
 
+    this.backButton.hidden = index === 0;
+    this.nextLabel.textContent = isLast ? 'READY TO START!' : 'NEXT';
+    this.nextButton.classList.toggle('is-ready', isLast);
+    this.nextButton.setAttribute('aria-label', isLast ? 'Ready to start level 1' : 'Next tutorial step');
+
+    this.progress.setAttribute('aria-valuenow', String(index + 1));
+    this.progressFill.style.transform = `scaleX(${(index + 1) / TUTORIAL.cards.length})`;
+
+    this.dots.querySelectorAll<HTMLElement>('.tutorial-dot').forEach((dot, dotIndex) => {
+      dot.classList.toggle('is-active', dotIndex === index);
+      dot.classList.toggle('is-done', dotIndex < index);
+    });
+
     const container = required<HTMLElement>(this.element, '.tutorial-card');
     container.classList.remove('is-swapping');
     void container.offsetWidth;
     container.classList.add('is-swapping');
-  }
-
-  private updateProgress(elapsed: number, duration: number): void {
-    const clamped = Math.min(duration, Math.max(0, elapsed));
-    const remaining = Math.max(0, duration - clamped);
-    this.progress.setAttribute('aria-valuemax', String(Math.round(duration)));
-    this.progress.setAttribute('aria-valuenow', String(Math.round(clamped)));
-    this.progressFill.style.transform = `scaleX(${duration > 0 ? clamped / duration : 1})`;
-    this.time.textContent = `${Math.ceil(remaining)}s`;
   }
 
   private skip(): void {
@@ -133,9 +154,23 @@ export class Tutorial {
   }
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
-    if (!this.visible || event.key !== 'Enter' || event.repeat) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    this.skip();
+    if (!this.visible || event.repeat) return;
+    if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      this.onNext();
+      return;
+    }
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      this.onPrev();
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      this.skip();
+    }
   };
 }

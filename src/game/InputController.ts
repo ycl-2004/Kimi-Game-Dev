@@ -40,14 +40,14 @@ export class InputController {
   }
 
   bindHoldButton(element: HTMLElement, key: string): void {
-    this.bindHoldInputs(element, [key], false);
+    this.bindHoldInputs(element, [key]);
   }
 
   bindChordButton(element: HTMLElement, keys: readonly string[]): void {
-    this.bindHoldInputs(element, keys, true);
+    this.bindHoldInputs(element, keys);
   }
 
-  private bindHoldInputs(element: HTMLElement, keys: readonly string[], mouseOnly: boolean): void {
+  private bindHoldInputs(element: HTMLElement, keys: readonly string[]): void {
     const normalizedKeys = [...new Set(keys.map((key) => this.normalizeKey(key)))];
     if (this.destroyed || normalizedKeys.length === 0 || this.bindings.some((binding) => binding.element === element)) return;
 
@@ -58,7 +58,7 @@ export class InputController {
       userSelect: element.style.getPropertyValue('user-select'),
       webkitTouchCallout: element.style.getPropertyValue('-webkit-touch-callout'),
       onPointerDown: (event) => {
-        if (event.button !== 0 || this.destroyed || (mouseOnly && event.pointerType !== 'mouse')) return;
+        if ((event.pointerType === 'mouse' && event.button !== 0) || this.destroyed) return;
         event.preventDefault();
         this.heldPointers.set(event.pointerId, normalizedKeys);
         try {

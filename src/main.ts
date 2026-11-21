@@ -152,7 +152,13 @@ hud.onToggleSound = toggleSound;
 receipt.onPlayAgain = replayFullRun;
 receipt.onSelectLevel = startPractice;
 receipt.onEndShift = returnToTitle;
+tutorial.onNext = () => engine.nextTutorialStep();
+tutorial.onPrev = () => engine.prevTutorialStep();
 tutorial.onSkip = () => engine.skipTutorial();
+flowTransition.onReady = () => {
+  void sound.unlock();
+  engine.confirmTransition();
+};
 leaderboard.onClose = hideLeaderboard;
 
 const input = new InputController({
@@ -173,7 +179,7 @@ const input = new InputController({
   },
 });
 
-hud.element.querySelectorAll<HTMLElement>('[data-input]').forEach((button) => {
+app.querySelectorAll<HTMLElement>('[data-input]').forEach((button) => {
   const key = button.dataset.input;
   if (!key) return;
   button.style.touchAction = 'none';
@@ -181,7 +187,7 @@ hud.element.querySelectorAll<HTMLElement>('[data-input]').forEach((button) => {
   input.bindHoldButton(button, key);
 });
 
-hud.element.querySelectorAll<HTMLElement>('[data-chord]').forEach((button) => {
+app.querySelectorAll<HTMLElement>('[data-chord]').forEach((button) => {
   const keys = button.dataset.chord?.split(',').filter(Boolean);
   if (keys?.length === 2) input.bindChordButton(button, keys);
 });
@@ -212,9 +218,13 @@ engine.onTutorialStart = () => {
 };
 
 engine.onLevelStart = (level) => {
+  input.reset();
+  sound.stopCharge();
+  wasCharging = false;
   tutorial.hide();
   flowTransition.hide();
   hud.show();
+  hud.showLevelBanner(level);
   scene.handleStepUp(level.needleStep);
   sound.setSpeedStep(level.needleStep);
 };

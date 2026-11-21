@@ -46,7 +46,7 @@ export function buildIsland(factory: ClayFactory, definition: IslandDefinition):
   else buildStarObservatory(factory, root, visual);
 
   buildMailbox(factory, root, visual.mailTarget);
-  const balloonColor = definition.id === 1 ? PALETTE.yellow : definition.id >= 3 ? definition.color : PALETTE.red;
+  const balloonColor = definition.id === 0 ? PALETTE.yellow : definition.id === 1 ? PALETTE.cobalt : definition.color;
   buildBalloon(factory, root, visual, balloonColor, definition.id === 0 ? -4.25 : 4.15);
   addGroundDetails(factory, root, definition.id);
 
@@ -191,15 +191,22 @@ function buildCatHarbor(factory: ClayFactory, root: THREE.Group): void {
 }
 
 function buildVolcanoSpa(factory: ClayFactory, root: THREE.Group, visual: IslandVisual): void {
-  const volcano = factory.mesh(factory.cylinder(0.78, 1.8, 2.35, 14), PALETTE.red);
+  const volcano = factory.mesh(factory.cylinder(0.78, 1.8, 2.35, 14), PALETTE.basalt);
   volcano.position.set(-0.9, 1.85, -0.8);
   root.add(volcano);
   const crater = factory.mesh(factory.torus(0.77, 0.18), PALETTE.ink);
   crater.rotation.x = Math.PI / 2;
   crater.position.set(-0.9, 3.04, -0.8);
   root.add(crater);
+  const lavaCore = factory.mesh(factory.cylinder(0.62, 0.62, 0.08, 12), PALETTE.lava, {
+    emissive: PALETTE.lava,
+    emissiveIntensity: 0.35,
+  });
+  lavaCore.position.set(-0.9, 3.01, -0.8);
+  lavaCore.castShadow = false;
+  root.add(lavaCore);
 
-  const pool = factory.mesh(factory.cylinder(1.18, 1.18, 0.18, 20), PALETTE.blue);
+  const pool = factory.mesh(factory.cylinder(1.18, 1.18, 0.18, 20), PALETTE.aqua);
   pool.position.set(1.35, 0.86, 0.95);
   root.add(pool);
   const poolRim = factory.mesh(factory.torus(1.2, 0.16), PALETTE.paper);
@@ -224,7 +231,7 @@ function buildBerryFarm(factory: ClayFactory, root: THREE.Group): void {
   const barnBody = factory.mesh(factory.rounded(1.75, 1.4, 1.45, 0.1), PALETTE.paper);
   barnBody.position.y = 0.7;
   barn.add(barnBody);
-  const roof = factory.mesh(factory.cone(1.42, 1.05, 4), PALETTE.berry);
+  const roof = factory.mesh(factory.cone(1.42, 1.05, 4), PALETTE.cobalt);
   roof.position.y = 1.72;
   roof.rotation.y = Math.PI / 4;
   roof.scale.z = 0.82;

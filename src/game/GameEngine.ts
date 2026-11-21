@@ -1,5 +1,6 @@
 import {
   BELT,
+  CHORDS,
   FEATURES,
   FEVER,
   GAMEPLAY,
@@ -9,6 +10,7 @@ import {
   SCRIPTED_FIRSTS,
   SPEED_STEPS,
   STAGES,
+  STAGE_TRANSITION_DURATION,
 } from '../config/gameConfig';
 import { judge, needleAt, needleSpeedFor, zoneFor } from './PowerBar';
 import type {
@@ -43,11 +45,14 @@ export class GameEngine {
   onFeverStart: () => void = () => undefined;
   onEnd: (stats: RunStats) => void = () => undefined;
   onExpress: (parcel: ParcelState) => void = () => undefined;
+  onChordHint: (parcel: ParcelState) => void = () => undefined;
+  onStageTransitionStart: () => void = () => undefined;
 
   private mode: GameMode = 'title';
   private clock = 0;
   private runTime = 0;
   private speedStepIndex = 0;
+  private stageTransitionElapsed: number | null = null;
   private queue: ParcelState[] = [];
   private nextParcelId = 1;
   private nextSpawnDelay = 0;
@@ -80,6 +85,7 @@ export class GameEngine {
     this.mode = 'playing';
     this.runTime = 0;
     this.speedStepIndex = 0;
+    this.stageTransitionElapsed = null;
     this.queue = [];
     this.nextParcelId = 1;
     this.nextSpawnDelay = 0;
@@ -110,26 +116,36 @@ export class GameEngine {
       this.updateActiveParcels(deltaTime);
       this.updateAttractAi(deltaTime);
     } else if (this.mode === 'playing') {
-      this.advanceRun(Math.min(deltaTime, RUN_LENGTH - this.runTime));
+      if (this.stageTransitionElapsed !== null) this.updateStageTransition(deltaTime);
+      else this.advanceRun(Math.min(deltaTime, RUN_LENGTH - this.runTime));
     }
 
     this.emitSnapshot();
   }
 
   pressIsland(id: number): void {
-    if (this.mode !== 'playing') return;
+    if (this.mode !== 'playing' || this.stageTransitionElapsed !== null) return;
     this.beginCharge(id);
     this.emitSnapshot();
   }
 
+  retargetIsland(id: number): void {
+    if (this.mode !== 'playing' || this.stageTransitionElapsed !== null || !this.charging) return;
+    if (!this.isFrontParcelReady() || !this.stage.islandIds.some((islandId) => islandId === id)) return;
+
+    this.selectedIslandId = id;
+    this.charging.islandId = id;
+    this.emitSnapshot();
+  }
+
   releaseIsland(id: number): void {
-    if (this.mode !== 'playing') return;
+    if (this.mode !== 'playing' || this.stageTransitionElapsed !== null) return;
     this.releaseCharge(id);
     this.emitSnapshot();
   }
 
   activateFever(): void {
-    if (this.mode !== 'playing') return;
+    if (this.mode !== 'playing' || this.stageTransitionElapsed !== null) return;
     this.activateFilledFever();
     this.emitSnapshot();
   }
@@ -142,6 +158,13 @@ export class GameEngine {
 
     return {
       mode: this.mode,
+      stageId: this.stage.id,
+      activeIslandIds: [...this.stage.islandIds],
+      allowChords: this.stage.allowChords,
+      stageTransition: this.stageTransitionElapsed === null ? null : {
+        elapsed: this.stageTransitionElapsed,
+        duration: STAGE_TRANSITION_DURATION,
+      },
       runTime: this.runTime,
       runLength: RUN_LENGTH,
       remaining: Math.max(0, RUN_LENGTH - this.runTime),
@@ -151,7 +174,7 @@ export class GameEngine {
       speedStep: speedStep.step,
       multiplier: speedStep.multiplier,
       beltSpeed: speedStep.beltSpeed,
-      beltFlowSpeed: this.currentBeltFlowSpeed(),
+      beltFlowSpeed: this.stageTransitionElapsed === null ? this.currentBeltFlowSpeed() : 0,
       frontParcel: frontParcel ? this.copyParcel(frontParcel) : null,
       parcelReady: this.isFrontParcelReady(),
       queue: this.queue.map((parcel) => this.copyParcel(parcel)),
@@ -214,11 +237,36 @@ export class GameEngine {
         this.owlText = nextStep.label === 'RUSH HOUR!' ? OWL_LINES.rush : OWL_LINES.speedup;
         const frontParcel = this.queue[0];
         if (frontParcel) frontParcel.waitRemaining = Math.min(frontParcel.waitRemaining, nextStep.waitWindow);
+        if (nextStep.start === 30 && FEATURES.stage2) this.beginStageTransition();
         this.onStepUp(nextStep.step);
+        if (this.stageTransitionElapsed !== null) break;
       }
     }
 
     if (this.runTime >= RUN_LENGTH) this.endRun();
+  }
+
+  private beginStageTransition(): void {
+    this.stageTransitionElapsed = 0;
+    this.charging = null;
+    this.attractShot = null;
+    this.queue = [];
+    this.preparedParcelId = null;
+    this.nextSpawnDelay = 0;
+    this.owlText = 'Stage two! New islands incoming!';
+    this.seedInitialQueue();
+    this.prepareFrontParcel();
+    this.onStageTransitionStart();
+  }
+
+  private updateStageTransition(deltaTime: number): void {
+    this.stageTransitionElapsed = Math.min(
+      STAGE_TRANSITION_DURATION,
+      (this.stageTransitionElapsed ?? 0) + deltaTime,
+    );
+    if (this.stageTransitionElapsed >= STAGE_TRANSITION_DURATION) {
+      this.stageTransitionElapsed = null;
+    }
   }
 
   private updateActiveParcels(deltaTime: number): void {
@@ -446,21 +494,30 @@ export class GameEngine {
     const parcel = this.queue[0];
     if (!parcel || this.preparedParcelId === parcel.id) return;
 
+    let chordScripted = false;
     if (this.mode === 'playing') {
       for (let index = 0; index < SCRIPTED_FIRSTS.length; index += 1) {
         const scripted = SCRIPTED_FIRSTS[index];
         if (this.completedScriptedFirsts.has(index) || this.runTime < scripted.at) continue;
         parcel.type = scripted.parcelType;
         parcel.expressRemaining = parcel.type === 'EXPRESS' ? GAMEPLAY.expressDuration : null;
+        chordScripted = scripted.targetIslandIds.length > 0;
+        if (chordScripted) {
+          const targetIndex = Math.floor(Math.random() * scripted.targetIslandIds.length);
+          parcel.targetIslandId = scripted.targetIslandIds[targetIndex];
+        }
         this.completedScriptedFirsts.add(index);
         break;
       }
     }
 
-    parcel.waitRemaining = this.speedStep.waitWindow;
+    parcel.waitRemaining = this.speedStep.waitWindow + (chordScripted ? CHORDS.waitWindowBonus : 0);
     this.preparedParcelId = parcel.id;
     this.updateQueuePositions();
-    if (parcel.type === 'EXPRESS') {
+    if (chordScripted) {
+      this.owlText = OWL_LINES.chord;
+      this.onChordHint(this.copyParcel(parcel));
+    } else if (parcel.type === 'EXPRESS') {
       this.owlText = OWL_LINES.express;
       this.onExpress(this.copyParcel(parcel));
     }
@@ -504,7 +561,13 @@ export class GameEngine {
   }
 
   private randomTargetIsland(): number {
-    const islandIds = this.stage.islandIds;
+    const chordIntroduced = SCRIPTED_FIRSTS.some((scripted, index) => (
+      scripted.targetIslandIds.length > 0 && this.completedScriptedFirsts.has(index)
+    ));
+    if (this.stage.allowChords && chordIntroduced && Math.random() < CHORDS.randomTargetChance) {
+      return Math.random() < 0.5 ? 3 : 4;
+    }
+    const islandIds = this.stage.islandIds.filter((id) => id <= 2);
     return islandIds[Math.floor(Math.random() * islandIds.length)];
   }
 
@@ -515,7 +578,7 @@ export class GameEngine {
       if (this.mode === 'title') return type === 'NORMAL';
       const scriptIndices = SCRIPTED_FIRSTS
         .map((scripted, index) => ({ scripted, index }))
-        .filter(({ scripted }) => scripted.parcelType === type);
+        .filter(({ scripted }) => scripted.parcelType === type && scripted.targetIslandIds.length === 0);
       return scriptIndices.length === 0 || scriptIndices.some(({ index }) => this.completedScriptedFirsts.has(index));
     });
     const total = available.reduce((sum, type) => sum + mix[type], 0);

@@ -2,6 +2,8 @@ const paths: Record<string, string> = {
   cupcake: '<path d="M7 11h10l-1.4 8H8.4L7 11Z"/><path d="M8 11c-2.5-.4-3.1-4.5-.4-5.5C7.9 2.4 11 2.4 12 5c1-2.6 4.1-2.6 4.4.5 2.7 1 2.1 5.1-.4 5.5"/><path d="M10 14v3m4-3v3"/>',
   lighthouse: '<path d="m9 21 1-12h4l1 12M8 21h8M9 9h6l-1-4h-4L9 9Z"/><path d="M12 2v3M7 6 3 4m14 2 4-2M10 13h4m-4.5 4h5"/>',
   volcano: '<path d="m3 20 6-12h6l6 12H3Z"/><path d="m9 8 2 3 2-3M8 4c-2-2 2-3 0-5m5 5c-2-2 2-3 0-5m5 7c-2-2 2-3 0-5"/>',
+  berry: '<path d="M8 9c-3 1-4 4-2 7 2 4 6 6 6 6s4-2 6-6c2-3 1-6-2-7H8Z"/><path d="M12 9c-1-3 1-5 4-6m-4 6C9 6 6 6 4 8c2 2 5 3 8 1Zm0 0c3-3 6-3 8-1-2 2-5 3-8 1Z"/><path d="M9 14h.01M15 14h.01M12 18h.01"/>',
+  observatory: '<path d="M4 21h16M6 21v-7h12v7M5 14a7 7 0 0 1 14 0H5Z"/><path d="M12 7v7m-2-4 4-2"/><path d="m18 2 .7 1.8 1.8.7-1.8.7L18 7l-.7-1.8-1.8-.7 1.8-.7L18 2Z"/>',
   parcel: '<path d="m4 7 8-4 8 4v10l-8 4-8-4V7Z"/><path d="m4 7 8 4 8-4m-8 4v10M8 5l8 4v4"/>',
   fragile: '<path d="M7 5h9v5a4.5 4.5 0 0 1-9 0V5Zm9 1h2a2 2 0 0 1 0 4h-2M6 20h11M8 16h7l1 4H7l1-4Z"/><path d="M4 2 20 22"/>',
   express: '<path d="m5 8 8-4 7 4v9l-8 4-7-4V8Z"/><path d="m5 8 7 4 8-4m-8 4v9M5 11 2 9m3 6-3 1m18-5 2-2M9 3 7 1"/>',

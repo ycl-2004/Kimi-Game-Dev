@@ -19,6 +19,7 @@ const VOICE_FILES = [
   'perfect',
   'miss',
   'express',
+  'chord_hint',
   'fever_ready',
   'fever',
   'speedup',

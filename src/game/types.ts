@@ -16,6 +16,8 @@ export interface IslandDefinition {
   driftPeriod: number;
   driftPhase: number;
   x: number;
+  stage2X: number;
+  elevation: number;
 }
 
 export type IslandId = (typeof ISLANDS)[number]['id'];
@@ -52,8 +54,17 @@ export interface RunStats {
   feverUsed: number;
 }
 
+export interface StageTransitionSnapshot {
+  elapsed: number;
+  duration: number;
+}
+
 export interface GameSnapshot {
   mode: GameMode;
+  stageId: string;
+  activeIslandIds: number[];
+  allowChords: boolean;
+  stageTransition: StageTransitionSnapshot | null;
   runTime: number;
   runLength: number;
   remaining: number;

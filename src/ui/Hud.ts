@@ -1,5 +1,5 @@
-import { FEVER, GAMEPLAY, ISLANDS, SPEED_STEPS } from '../config/gameConfig';
-import type { GameSnapshot, ResultEvent } from '../game/types';
+import { CHORDS, FEVER, GAMEPLAY, ISLANDS, SPEED_STEPS } from '../config/gameConfig';
+import type { GameSnapshot, ParcelState, ResultEvent } from '../game/types';
 import { icon, owlPortrait } from './icons';
 
 function required<T extends Element>(root: ParentNode, selector: string): T {
@@ -15,6 +15,9 @@ function setText(element: Element, value: string): void {
 function percent(value: number): string {
   return `${Math.max(0, Math.min(1, value)) * 100}%`;
 }
+
+const CONSOLE_ISLANDS = ISLANDS.filter((island) => island.inputs.length === 1);
+const CHORD_ISLANDS = ISLANDS.filter((island) => island.inputs.length === 2);
 
 export class Hud {
   readonly element: HTMLElement;
@@ -45,6 +48,7 @@ export class Hud {
   private readonly feverFill: HTMLElement;
   private readonly feverStatus: HTMLElement;
   private readonly consoleButtons: HTMLButtonElement[];
+  private readonly chordButtons: HTMLButtonElement[];
   private readonly consoleGuidance: HTMLElement;
   private readonly resultToast: HTMLElement;
   private readonly stepBanner: HTMLElement;
@@ -57,6 +61,7 @@ export class Hud {
   private soundButton!: HTMLButtonElement;
   private ticketSignature = '';
   private queueSignature = '';
+  private chordHint: { parcelId: number; islandId: number; expiresAt: number } | null = null;
 
   constructor() {
     this.element = document.createElement('section');
@@ -120,12 +125,17 @@ export class Hud {
       <div class="console-wrap">
         <div class="console-label"><span class="console-guidance">INCOMING…</span></div>
         <div class="console-buttons">
-          ${ISLANDS.map((island) => `
+          ${CONSOLE_ISLANDS.map((island) => `
             <button class="console-button console-${island.id}" type="button" data-input="${island.inputs[0]}" style="--island-color:${island.color}" aria-label="Hold for ${island.name}">
               <span class="console-key">${island.inputs.join('+')}</span>
               ${icon(island.icon)}
               <span class="console-name">${island.short}</span>
               <span class="console-action">HOLD</span>
+            </button>`).join('')}
+          ${CHORD_ISLANDS.map((island) => `
+            <button class="chord-bridge" type="button" data-chord="${island.inputs.join(',')}" data-island="${island.id}" aria-label="Hold ${island.inputs.join('+')} for ${island.name}">
+              <span class="console-key">${island.inputs.join('+')}</span>
+              ${icon(island.icon)}
             </button>`).join('')}
         </div>
       </div>`;
@@ -153,6 +163,7 @@ export class Hud {
     this.feverFill = required(this.element, '.fever-liquid');
     this.feverStatus = required(this.element, '.fever-status');
     this.consoleButtons = Array.from(this.element.querySelectorAll<HTMLButtonElement>('.console-button'));
+    this.chordButtons = Array.from(this.element.querySelectorAll<HTMLButtonElement>('.chord-bridge'));
     this.consoleGuidance = required(this.element, '.console-guidance');
     this.resultToast = required(this.element, '.result-toast');
     this.stepBanner = required(this.element, '.step-banner');
@@ -197,21 +208,39 @@ export class Hud {
     }
 
     this.updateTicket(snapshot);
-    this.updatePower(snapshot);
+    const chordHint = this.getChordHint(snapshot);
+    this.updatePower(snapshot, chordHint);
     this.updateFever(snapshot);
 
     const targetIsland = ISLANDS.find((island) => island.id === snapshot.frontParcel?.targetIslandId) ?? ISLANDS[0];
+    const chargingIsland = ISLANDS.find((island) => island.id === snapshot.charging?.islandId);
     const targetKeys = targetIsland.inputs.join('+');
-    setText(this.consoleGuidance, snapshot.parcelReady
+    setText(this.consoleGuidance, chordHint ?? (snapshot.parcelReady
       ? `HOLD ${targetKeys} · ${targetIsland.name.toUpperCase()}`
-      : `INCOMING · ${targetKeys} · ${targetIsland.name.toUpperCase()}`);
+      : `INCOMING · ${targetKeys} · ${targetIsland.name.toUpperCase()}`));
     this.element.classList.toggle('is-parcel-ready', snapshot.parcelReady);
+    this.element.classList.toggle('stage-two', snapshot.allowChords);
+    this.element.dataset.stage = snapshot.stageId;
 
     this.consoleButtons.forEach((button, index) => {
-      const held = snapshot.charging?.islandId === index;
-      const target = snapshot.frontParcel?.targetIslandId === index;
+      const island = CONSOLE_ISLANDS[index];
+      const input = island.inputs[0];
+      const held = chargingIsland?.inputs.some((key) => key === input) ?? false;
+      const target = snapshot.frontParcel !== null && targetIsland.inputs.some((key) => key === input);
       button.classList.toggle('is-held', held);
       button.classList.toggle('is-target', target);
+      button.classList.toggle('is-chord-key', target && targetIsland.inputs.length > 1);
+      button.disabled = snapshot.stageTransition !== null;
+      button.setAttribute('aria-pressed', String(held));
+    });
+
+    this.chordButtons.forEach((button) => {
+      const islandId = Number(button.dataset.island);
+      const held = snapshot.charging?.islandId === islandId;
+      const target = snapshot.frontParcel?.targetIslandId === islandId;
+      button.classList.toggle('is-held', held);
+      button.classList.toggle('is-target', target);
+      button.disabled = snapshot.stageTransition !== null;
       button.setAttribute('aria-pressed', String(held));
     });
   }
@@ -238,8 +267,16 @@ export class Hud {
     this.applySound(!muted);
   }
 
-  showSpeedUp(label: string): void {
-    this.showStepUp(this.currentSpeedStep);
+  showChordHint(parcel: ParcelState): void {
+    this.chordHint = {
+      parcelId: parcel.id,
+      islandId: parcel.targetIslandId,
+      expiresAt: performance.now() + CHORDS.hintDuration * 1000,
+    };
+  }
+
+  showSpeedUp(label: string, step = this.currentSpeedStep): void {
+    this.showStepUp(step);
     setText(required(this.stepBanner, 'strong'), label);
   }
 
@@ -328,7 +365,17 @@ export class Hud {
     }
   }
 
-  private updatePower(snapshot: GameSnapshot): void {
+  private getChordHint(snapshot: GameSnapshot): string | null {
+    if (!this.chordHint) return null;
+    if (snapshot.frontParcel?.id !== this.chordHint.parcelId || performance.now() >= this.chordHint.expiresAt) {
+      this.chordHint = null;
+      return null;
+    }
+    const island = ISLANDS.find((item) => item.id === this.chordHint?.islandId);
+    return island ? `PRESS ${island.inputs.join('+')} TOGETHER` : null;
+  }
+
+  private updatePower(snapshot: GameSnapshot, chordHint: string | null): void {
     const { zone } = snapshot;
     this.greenBand.style.bottom = percent(zone.center - zone.greenHalfWidth);
     this.greenBand.style.height = percent(zone.greenHalfWidth * 2);
@@ -336,7 +383,7 @@ export class Hud {
     this.goldBand.style.height = percent(zone.goldHalfWidth * 2);
     this.needle.style.bottom = percent(snapshot.charging?.power ?? 0);
     this.powerBar.classList.toggle('is-charging', snapshot.charging !== null);
-    const hint = snapshot.charging ? 'RELEASE TO THROW' : snapshot.parcelReady ? 'HOLD TO CHARGE' : 'INCOMING…';
+    const hint = chordHint ?? (snapshot.charging ? 'RELEASE TO THROW' : snapshot.parcelReady ? 'HOLD TO CHARGE' : 'INCOMING…');
     setText(this.powerHint, hint);
     this.powerHint.classList.toggle('is-active', snapshot.charging !== null);
     this.powerHint.classList.toggle('is-waiting', !snapshot.parcelReady);

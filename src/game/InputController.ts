@@ -1,15 +1,17 @@
-import { ISLANDS } from '../config/gameConfig';
+import { CHORDS, ISLANDS } from '../config/gameConfig';
 
 interface InputCallbacks {
   onPress: (id: number) => void;
+  onRetarget: (id: number) => void;
   onRelease: (id: number) => void;
   onFever: () => void;
   onConfirm: () => void;
+  allowChords: () => boolean;
 }
 
 interface HoldBinding {
   element: HTMLElement;
-  key: string;
+  keys: string[];
   touchAction: string;
   userSelect: string;
   webkitTouchCallout: string;
@@ -21,9 +23,11 @@ interface HoldBinding {
 
 export class InputController {
   private readonly heldKeys = new Set<string>();
-  private readonly heldPointers = new Map<number, string>();
+  private readonly heldPointers = new Map<number, string[]>();
   private readonly bindings: HoldBinding[] = [];
   private resolvedIslandId: number | null = null;
+  private chargeStartedAt = 0;
+  private inputLocked = false;
   private destroyed = false;
 
   constructor(private readonly callbacks: InputCallbacks) {
@@ -36,19 +40,27 @@ export class InputController {
   }
 
   bindHoldButton(element: HTMLElement, key: string): void {
-    if (this.destroyed || this.bindings.some((binding) => binding.element === element)) return;
+    this.bindHoldInputs(element, [key], false);
+  }
 
-    const normalizedKey = this.normalizeKey(key);
+  bindChordButton(element: HTMLElement, keys: readonly string[]): void {
+    this.bindHoldInputs(element, keys, true);
+  }
+
+  private bindHoldInputs(element: HTMLElement, keys: readonly string[], mouseOnly: boolean): void {
+    const normalizedKeys = [...new Set(keys.map((key) => this.normalizeKey(key)))];
+    if (this.destroyed || normalizedKeys.length === 0 || this.bindings.some((binding) => binding.element === element)) return;
+
     const binding: HoldBinding = {
       element,
-      key: normalizedKey,
+      keys: normalizedKeys,
       touchAction: element.style.getPropertyValue('touch-action'),
       userSelect: element.style.getPropertyValue('user-select'),
       webkitTouchCallout: element.style.getPropertyValue('-webkit-touch-callout'),
       onPointerDown: (event) => {
-        if (event.button !== 0 || this.destroyed) return;
+        if (event.button !== 0 || this.destroyed || (mouseOnly && event.pointerType !== 'mouse')) return;
         event.preventDefault();
-        this.heldPointers.set(event.pointerId, normalizedKey);
+        this.heldPointers.set(event.pointerId, normalizedKeys);
         try {
           element.setPointerCapture(event.pointerId);
         } catch {
@@ -75,6 +87,14 @@ export class InputController {
     element.addEventListener('contextmenu', binding.onContextMenu);
     element.addEventListener('dragstart', binding.onDragStart);
     this.bindings.push(binding);
+  }
+
+  reset(): void {
+    this.heldKeys.clear();
+    this.heldPointers.clear();
+    this.resolvedIslandId = null;
+    this.chargeStartedAt = 0;
+    this.inputLocked = false;
   }
 
   destroy(): void {
@@ -136,7 +156,7 @@ export class InputController {
     if (!this.heldKeys.has(key)) return;
     event.preventDefault();
     this.heldKeys.delete(key);
-    this.resolveHeldInputs();
+    this.releaseHeldInput();
   };
 
   private readonly onGlobalPointerUp = (event: PointerEvent): void => {
@@ -147,10 +167,13 @@ export class InputController {
   };
 
   private readonly releaseAll = (): void => {
-    if (this.heldKeys.size === 0 && this.heldPointers.size === 0) return;
+    const previousIslandId = this.resolvedIslandId;
     this.heldKeys.clear();
     this.heldPointers.clear();
-    this.resolveHeldInputs();
+    this.resolvedIslandId = null;
+    this.chargeStartedAt = 0;
+    this.inputLocked = false;
+    if (previousIslandId !== null) this.callbacks.onRelease(previousIslandId);
   };
 
   private readonly onVisibilityChange = (): void => {
@@ -159,22 +182,47 @@ export class InputController {
 
   private releasePointer(pointerId: number): void {
     this.heldPointers.delete(pointerId);
-    this.resolveHeldInputs();
+    this.releaseHeldInput();
   }
 
   private resolveHeldInputs(): void {
-    const heldInputs = new Set<string>([...this.heldKeys, ...this.heldPointers.values()]);
+    if (this.inputLocked) return;
+
+    const heldInputs = new Set<string>([
+      ...this.heldKeys,
+      ...[...this.heldPointers.values()].flat(),
+    ]);
     const match = ISLANDS.find((island) => {
       const inputs = island.inputs.map((input) => this.normalizeKey(input));
       return inputs.length === heldInputs.size && inputs.every((input) => heldInputs.has(input));
     });
-    const nextIslandId = match?.id ?? null;
-    if (nextIslandId === this.resolvedIslandId) return;
+    if (!match) return;
 
+    if (this.resolvedIslandId === null) {
+      if (match.inputs.length > 1 && !this.callbacks.allowChords()) return;
+      this.resolvedIslandId = match.id;
+      this.chargeStartedAt = performance.now();
+      this.callbacks.onPress(match.id);
+      return;
+    }
+
+    if (
+      match.id === this.resolvedIslandId
+      || match.inputs.length !== 2
+      || !this.callbacks.allowChords()
+      || performance.now() - this.chargeStartedAt > CHORDS.retargetWindowMs
+    ) return;
+
+    this.resolvedIslandId = match.id;
+    this.callbacks.onRetarget(match.id);
+  }
+
+  private releaseHeldInput(): void {
     const previousIslandId = this.resolvedIslandId;
-    this.resolvedIslandId = nextIslandId;
+    this.resolvedIslandId = null;
+    this.chargeStartedAt = 0;
+    this.inputLocked = this.heldKeys.size > 0 || this.heldPointers.size > 0;
     if (previousIslandId !== null) this.callbacks.onRelease(previousIslandId);
-    if (nextIslandId !== null) this.callbacks.onPress(nextIslandId);
   }
 
   private isIslandInput(key: string): boolean {

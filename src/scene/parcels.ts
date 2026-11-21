@@ -171,11 +171,37 @@ function addIslandIcon(factory: ClayFactory, group: THREE.Group, islandId: numbe
     roof.rotation.x = Math.PI / 2;
     roof.position.set(x, y + 0.12, z);
     group.add(roof);
-  } else {
+  } else if (islandId === 2) {
     const volcano = factory.mesh(factory.cone(0.11, 0.2, 8), PALETTE.paper);
     volcano.rotation.x = Math.PI / 2;
     volcano.position.set(x, y, z);
     group.add(volcano);
+  } else if (islandId === 3) {
+    [[-0.065, -0.025], [0.065, -0.025], [0, 0.065]].forEach(([offsetX, offsetY]) => {
+      const berry = factory.mesh(factory.sphere(0.07, 10, 8), PALETTE.paper);
+      berry.scale.z = 0.45;
+      berry.position.set(x + offsetX, y + offsetY, z);
+      group.add(berry);
+    });
+    [-1, 1].forEach((side) => {
+      const leaf = factory.mesh(factory.sphere(0.045, 8, 6), PALETTE.paper);
+      leaf.scale.set(1, 0.45, 0.35);
+      leaf.rotation.z = side * 0.55;
+      leaf.position.set(x + side * 0.04, y + 0.135, z);
+      group.add(leaf);
+    });
+  } else {
+    const dome = factory.mesh(factory.sphere(0.105, 12, 8), PALETTE.paper);
+    dome.scale.set(1, 0.65, 0.35);
+    dome.position.set(x, y + 0.025, z);
+    group.add(dome);
+    const base = factory.mesh(factory.rounded(0.24, 0.06, 0.045, 0.02), PALETTE.paper);
+    base.position.set(x, y - 0.075, z);
+    group.add(base);
+    const telescope = factory.mesh(factory.rounded(0.04, 0.14, 0.04, 0.015), PALETTE.paper);
+    telescope.rotation.z = -0.65;
+    telescope.position.set(x + 0.035, y + 0.03, z + 0.025);
+    group.add(telescope);
   }
 }
 

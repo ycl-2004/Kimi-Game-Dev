@@ -10,6 +10,7 @@ export interface IslandVisual {
   windmills: THREE.Group[];
   balloons: THREE.Group[];
   smokeRings: THREE.Mesh[];
+  sparkles: THREE.Group[];
 }
 
 export function buildIsland(factory: ClayFactory, definition: IslandDefinition): IslandVisual {
@@ -35,14 +36,18 @@ export function buildIsland(factory: ClayFactory, definition: IslandDefinition):
     windmills: [],
     balloons: [],
     smokeRings: [],
+    sparkles: [],
   };
 
   if (definition.icon === 'cupcake') buildCakeIsle(factory, root, visual);
   else if (definition.icon === 'lighthouse') buildCatHarbor(factory, root);
-  else buildVolcanoSpa(factory, root, visual);
+  else if (definition.icon === 'volcano') buildVolcanoSpa(factory, root, visual);
+  else if (definition.icon === 'berry') buildBerryFarm(factory, root);
+  else buildStarObservatory(factory, root, visual);
 
   buildMailbox(factory, root, visual.mailTarget);
-  buildBalloon(factory, root, visual, definition.id === 1 ? PALETTE.yellow : PALETTE.red, definition.id === 0 ? -4.25 : 4.15);
+  const balloonColor = definition.id === 1 ? PALETTE.yellow : definition.id >= 3 ? definition.color : PALETTE.red;
+  buildBalloon(factory, root, visual, balloonColor, definition.id === 0 ? -4.25 : 4.15);
   addGroundDetails(factory, root, definition.id);
 
   root.add(visual.mailTarget);
@@ -210,6 +215,129 @@ function buildVolcanoSpa(factory: ClayFactory, root: THREE.Group, visual: Island
     root.add(ring);
     visual.smokeRings.push(ring);
   }
+}
+
+function buildBerryFarm(factory: ClayFactory, root: THREE.Group): void {
+  const barn = new THREE.Group();
+  barn.position.set(-1.05, 0.76, -0.85);
+  root.add(barn);
+  const barnBody = factory.mesh(factory.rounded(1.75, 1.4, 1.45, 0.1), PALETTE.paper);
+  barnBody.position.y = 0.7;
+  barn.add(barnBody);
+  const roof = factory.mesh(factory.cone(1.42, 1.05, 4), PALETTE.berry);
+  roof.position.y = 1.72;
+  roof.rotation.y = Math.PI / 4;
+  roof.scale.z = 0.82;
+  barn.add(roof);
+  const door = factory.mesh(factory.rounded(0.58, 0.82, 0.07, 0.04), PALETTE.wood);
+  door.position.set(0, 0.42, 0.75);
+  barn.add(door);
+  const doorBrace = factory.mesh(factory.rounded(0.06, 0.72, 0.04, 0.015), PALETTE.paper);
+  doorBrace.position.set(0, 0.42, 0.8);
+  doorBrace.rotation.z = 0.58;
+  barn.add(doorBrace);
+  const barnWindow = factory.mesh(factory.rounded(0.35, 0.35, 0.06, 0.04), PALETTE.blue);
+  barnWindow.position.set(0, 1.13, 0.75);
+  barn.add(barnWindow);
+
+  const berryPositions = [
+    [0.55, 1.35], [1.25, 1.35], [1.95, 1.35],
+    [0.75, 0.55], [1.45, 0.55], [2.15, 0.55],
+  ] as const;
+  berryPositions.forEach(([x, z], index) => {
+    const leaves = factory.mesh(factory.sphere(0.3, 10, 7), PALETTE.mint);
+    leaves.position.set(x, 0.93, z);
+    leaves.scale.set(1, 0.42, 1);
+    root.add(leaves);
+    const berry = factory.mesh(factory.sphere(0.18, 10, 8), PALETTE.red);
+    berry.position.set(x + (index % 2 === 0 ? -0.08 : 0.08), 1.12, z + 0.08);
+    berry.scale.y = 1.18;
+    root.add(berry);
+  });
+
+  const scarecrow = new THREE.Group();
+  scarecrow.position.set(1.55, 0.78, -1.35);
+  root.add(scarecrow);
+  const pole = factory.mesh(factory.cylinder(0.055, 0.07, 1.9, 8), PALETTE.wood);
+  pole.position.y = 0.85;
+  scarecrow.add(pole);
+  const arms = factory.mesh(factory.capsule(0.055, 1.05), PALETTE.wood);
+  arms.position.y = 1.15;
+  arms.rotation.z = Math.PI / 2;
+  scarecrow.add(arms);
+  const shirt = factory.mesh(factory.rounded(0.85, 0.55, 0.24, 0.09), PALETTE.blue);
+  shirt.position.y = 1.05;
+  scarecrow.add(shirt);
+  const head = factory.mesh(factory.sphere(0.3, 12, 9), PALETTE.paper);
+  head.position.y = 1.62;
+  scarecrow.add(head);
+  const hat = factory.mesh(factory.cone(0.43, 0.5, 12), PALETTE.yellow);
+  hat.position.y = 2.02;
+  scarecrow.add(hat);
+}
+
+function buildStarObservatory(factory: ClayFactory, root: THREE.Group, visual: IslandVisual): void {
+  const observatory = new THREE.Group();
+  observatory.position.set(-0.85, 0.76, -0.7);
+  root.add(observatory);
+  const base = factory.mesh(factory.cylinder(0.98, 1.1, 1.3, 18), PALETTE.paper);
+  base.position.y = 0.65;
+  observatory.add(base);
+  const dome = factory.mesh(factory.sphere(1.04, 20, 14), PALETTE.lavender);
+  dome.position.y = 1.35;
+  dome.scale.y = 0.68;
+  observatory.add(dome);
+  const domeSlit = factory.mesh(factory.rounded(0.2, 0.85, 0.07, 0.035), PALETTE.ink);
+  domeSlit.position.set(0, 1.53, 0.89);
+  domeSlit.rotation.x = -0.25;
+  observatory.add(domeSlit);
+  const door = factory.mesh(factory.rounded(0.4, 0.65, 0.06, 0.08), PALETTE.wood);
+  door.position.set(0, 0.35, 1.04);
+  observatory.add(door);
+
+  const telescope = new THREE.Group();
+  telescope.position.set(1.25, 1.35, -0.6);
+  telescope.rotation.z = -0.58;
+  root.add(telescope);
+  const tube = factory.mesh(factory.cylinder(0.2, 0.27, 1.75, 14), PALETTE.yellow);
+  tube.position.y = 0.65;
+  telescope.add(tube);
+  const lensRim = factory.mesh(factory.cylinder(0.29, 0.29, 0.18, 14), PALETTE.ink);
+  lensRim.position.y = 1.56;
+  telescope.add(lensRim);
+  const lens = factory.mesh(factory.cylinder(0.22, 0.22, 0.03, 14), PALETTE.blue);
+  lens.position.y = 1.67;
+  telescope.add(lens);
+  [-0.42, 0.42].forEach((x) => {
+    const leg = factory.mesh(factory.capsule(0.055, 1.15), PALETTE.wood);
+    leg.position.set(x, 0.15, 0);
+    leg.rotation.z = x < 0 ? -0.35 : 0.35;
+    telescope.add(leg);
+  });
+
+  const sparklePositions = [[-2.2, 3.2, -0.5], [1.9, 3.55, -1.25], [0.45, 4.25, -0.9]] as const;
+  sparklePositions.forEach(([x, y, z], index) => {
+    const sparkle = new THREE.Group();
+    sparkle.position.set(x, y, z);
+    sparkle.userData.baseY = y;
+    sparkle.userData.phase = index * 1.7;
+    const shape = new THREE.Shape();
+    const points = 8;
+    for (let point = 0; point < points; point += 1) {
+      const angle = (point / points) * Math.PI * 2 + Math.PI / 2;
+      const radius = point % 2 === 0 ? 0.34 : 0.12;
+      const px = Math.cos(angle) * radius;
+      const py = Math.sin(angle) * radius;
+      if (point === 0) shape.moveTo(px, py);
+      else shape.lineTo(px, py);
+    }
+    shape.closePath();
+    const star = factory.mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.09, bevelEnabled: true, bevelSize: 0.025, bevelThickness: 0.025, bevelSegments: 1 }), PALETTE.yellow, { emissive: PALETTE.yellow, emissiveIntensity: 0.25 });
+    star.castShadow = false;
+    sparkle.add(star);
+    root.add(sparkle);
+    visual.sparkles.push(sparkle);
+  });
 }
 
 function buildMailbox(factory: ClayFactory, root: THREE.Group, target: THREE.Object3D): void {

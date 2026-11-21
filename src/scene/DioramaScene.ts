@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GAMEPLAY, ISLANDS, PALETTE } from '../config/gameConfig';
+import { FEATURES, GAMEPLAY, ISLANDS, PALETTE } from '../config/gameConfig';
 import type { GameMode, GameSnapshot, IslandDefinition, ParcelState, ResultEvent, ResultKind } from '../game/types';
 import { BELT_END_X, BELT_START_X, LAUNCH_POSITION, buildCloudSea, buildConveyor, buildPostalCat, updateConveyor } from './actors';
 import type { CatVisual, ConveyorVisual } from './actors';
@@ -9,6 +9,21 @@ import type { IslandVisual } from './islands';
 import { ParticleSystem } from './ParticleSystem';
 import { buildParcel, updateParcelCountdown } from './parcels';
 import type { ParcelVisual } from './parcels';
+
+const DAY_SKY_TOP = new THREE.Color('#DDF1FF');
+const DAY_SKY_BOTTOM = new THREE.Color('#FFF6E9');
+const SUNSET_SKY_TOP = new THREE.Color('#CDB8E8');
+const SUNSET_SKY_BOTTOM = new THREE.Color('#FFD3B0');
+const DAY_SUNLIGHT = new THREE.Color('#FFF2DC');
+const SUNSET_SUNLIGHT = new THREE.Color('#FFB37A');
+const DAY_HEMISPHERE = new THREE.Color('#FFF9F0');
+const SUNSET_HEMISPHERE = new THREE.Color('#FFE2C6');
+const DAY_CLOUDS = new THREE.Color(PALETTE.paper);
+const SUNSET_CLOUDS = new THREE.Color('#FFDCC8');
+const DAY_SUN_POSITION = new THREE.Vector3(-14, 24, 16);
+const SUNSET_SUN_POSITION = new THREE.Vector3(-22, 9, 14);
+const CAMERA_TARGET = new THREE.Vector3(0, 0, -5);
+const CAMERA_OFFSET = new THREE.Vector3(16, 18, 32);
 
 interface IslandRig {
   visual: IslandVisual;
@@ -55,8 +70,12 @@ export class DioramaScene {
   private readonly conveyor: ConveyorVisual;
   private readonly cat: CatVisual;
   private readonly clouds: THREE.Group;
+  private readonly cloudMaterial: THREE.MeshStandardMaterial;
   private readonly particles: ParticleSystem;
   private readonly feverLight: THREE.PointLight;
+  private readonly hemisphere: THREE.HemisphereLight;
+  private readonly sunlight: THREE.DirectionalLight;
+  private readonly skyTexture: THREE.CanvasTexture;
   private readonly islands = new Map<number, IslandRig>();
   private readonly parcels = new Map<number, ParcelRig>();
   private readonly flights: FlightAnimation[] = [];
@@ -76,6 +95,13 @@ export class DioramaScene {
   private labelWidth = 1;
   private labelHeight = 1;
   private lastMode: GameMode | null = null;
+  private stageTwo = false;
+  private stageProgress = 0;
+  private islandArrivalProgress = 0;
+  private lightingProgress = -1;
+  private cameraFit = 1;
+  private compactLabels = false;
+  private readonly activeIslandIds = new Set<number>([0, 1, 2]);
 
   constructor(private readonly container: HTMLElement, private readonly labelLayer: HTMLElement) {
     this.mobile = window.matchMedia('(pointer: coarse)').matches || Math.min(window.innerWidth, window.innerHeight) < 600;
@@ -103,25 +129,26 @@ export class DioramaScene {
     labelLayer.style.pointerEvents = 'none';
     labelLayer.style.zIndex = '1';
 
-    this.scene.background = this.createSkyTexture();
+    this.skyTexture = this.createSkyTexture();
+    this.scene.background = this.skyTexture;
     this.scene.fog = new THREE.Fog(PALETTE.sky, 48, 115);
 
-    const hemisphere = new THREE.HemisphereLight(0xfff9f0, 0xd8c3a5, 1);
-    this.scene.add(hemisphere);
-    const sunlight = new THREE.DirectionalLight(0xfff2dc, 1.4);
-    sunlight.position.set(-14, 24, 16);
-    sunlight.castShadow = this.shadowsEnabled;
+    this.hemisphere = new THREE.HemisphereLight(DAY_HEMISPHERE, 0xd8c3a5, 1);
+    this.scene.add(this.hemisphere);
+    this.sunlight = new THREE.DirectionalLight(DAY_SUNLIGHT, 1.4);
+    this.sunlight.position.copy(DAY_SUN_POSITION);
+    this.sunlight.castShadow = this.shadowsEnabled;
     const shadowSize = 512;
-    sunlight.shadow.mapSize.set(shadowSize, shadowSize);
-    sunlight.shadow.camera.left = -32;
-    sunlight.shadow.camera.right = 32;
-    sunlight.shadow.camera.top = 32;
-    sunlight.shadow.camera.bottom = -32;
-    sunlight.shadow.camera.near = 1;
-    sunlight.shadow.camera.far = 75;
-    sunlight.shadow.bias = -0.0004;
-    sunlight.shadow.normalBias = 0.035;
-    this.scene.add(sunlight);
+    this.sunlight.shadow.mapSize.set(shadowSize, shadowSize);
+    this.sunlight.shadow.camera.left = -32;
+    this.sunlight.shadow.camera.right = 32;
+    this.sunlight.shadow.camera.top = 32;
+    this.sunlight.shadow.camera.bottom = -32;
+    this.sunlight.shadow.camera.near = 1;
+    this.sunlight.shadow.camera.far = 75;
+    this.sunlight.shadow.bias = -0.0004;
+    this.sunlight.shadow.normalBias = 0.035;
+    this.scene.add(this.sunlight);
 
     this.feverLight = new THREE.PointLight(PALETTE.yellow, 0, 32, 2);
     this.feverLight.position.set(2, 8, 4);
@@ -134,7 +161,11 @@ export class DioramaScene {
     this.scene.add(sun);
 
     this.clouds = buildCloudSea(this.factory, this.softwareRenderer ? 48 : this.mobile ? 64 : 100);
+    const cloudMesh = this.clouds.children[0] as THREE.InstancedMesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
+    this.cloudMaterial = cloudMesh.material.clone();
+    cloudMesh.material = this.cloudMaterial;
     this.scene.add(this.clouds);
+    this.updateLighting(0);
 
     for (const definition of ISLANDS) {
       const visual = buildIsland(this.factory, definition);
@@ -167,6 +198,7 @@ export class DioramaScene {
     this.resizeObserver.observe(container);
     window.addEventListener('resize', this.resizeHandler, { passive: true });
     this.resize();
+    this.updateLabels(null);
   }
 
   setTimeline(time: number): void {
@@ -186,6 +218,7 @@ export class DioramaScene {
       this.lastMode = snapshot.mode;
     }
 
+    this.syncStage(snapshot);
     this.updateIslandPositions(delta);
     this.clouds.position.x = Math.sin(this.timeline * 0.035) * 2.2;
     this.clouds.position.z = Math.cos(this.timeline * 0.025) * 0.8;
@@ -306,28 +339,65 @@ export class DioramaScene {
     this.renderer.setSize(width, height, false);
     this.camera.aspect = aspect;
     this.camera.fov = aspect < 0.75 ? 45 : 39;
-    const fit = Math.max(1, 0.92 / aspect);
-    const target = new THREE.Vector3(0, 0, -5);
-    const offset = new THREE.Vector3(16, 18, 32).multiplyScalar(fit);
-    this.camera.position.copy(target).add(offset);
-    this.camera.lookAt(target);
+    this.cameraFit = Math.max(1, 0.92 / aspect);
+    this.updateCamera();
     this.camera.updateProjectionMatrix();
+    this.updateLabelLayout();
+  }
+
+  private syncStage(snapshot: GameSnapshot): void {
+    this.stageTwo = snapshot.stageId === 'sunset' || snapshot.allowChords;
+    this.activeIslandIds.clear();
+    for (const id of snapshot.activeIslandIds) this.activeIslandIds.add(id);
+
+    const transition = this.stageTwo ? snapshot.stageTransition : null;
+    const duration = Math.max(0.001, transition?.duration ?? 1);
+    const linearProgress = this.stageTwo
+      ? transition ? THREE.MathUtils.clamp(transition.elapsed / duration, 0, 1) : 1
+      : 0;
+    this.stageProgress = THREE.MathUtils.smoothstep(linearProgress, 0, 1);
+    const remaining = 1 - linearProgress;
+    this.islandArrivalProgress = this.stageTwo
+      ? transition ? 1 - remaining * remaining * remaining * Math.cos(linearProgress * Math.PI * 3) : 1
+      : 0;
+
+    const compactLabels = this.activeIslandIds.size === 5;
+    if (compactLabels !== this.compactLabels) {
+      this.compactLabels = compactLabels;
+      this.updateLabelLayout();
+    }
+    this.updateCamera();
+    this.updateLighting(FEATURES.sunset ? this.stageProgress : 0);
+  }
+
+  private updateCamera(): void {
+    const dolly = 1 + this.stageProgress * 0.1;
+    this.camera.position.copy(CAMERA_TARGET).addScaledVector(CAMERA_OFFSET, this.cameraFit * dolly);
+    this.camera.lookAt(CAMERA_TARGET);
     this.camera.updateMatrixWorld();
+  }
+
+  private updateLabelLayout(): void {
+    const mobile = this.labelWidth < 600;
     for (const rig of this.islands.values()) {
-      rig.label.style.fontSize = width < 600 ? '10px' : '13px';
-      rig.label.style.padding = width < 600 ? '5px 9px' : '7px 12px';
-      rig.label.style.borderWidth = width < 600 ? '1px' : '2px';
+      rig.label.style.fontSize = this.compactLabels ? (mobile ? '9px' : '11px') : mobile ? '10px' : '13px';
+      rig.label.style.padding = this.compactLabels ? (mobile ? '4px 6px' : '5px 9px') : mobile ? '5px 9px' : '7px 12px';
+      rig.label.style.borderWidth = mobile ? '1px' : '2px';
     }
   }
 
   private updateIslandPositions(dt: number): void {
     for (const rig of this.islands.values()) {
-      const { definition, root, windmills, balloons, smokeRings } = rig.visual;
+      const { definition, root, windmills, balloons, smokeRings, sparkles } = rig.visual;
+      root.visible = this.activeIslandIds.has(definition.id);
       rig.distance = this.distanceAt(definition, this.timeline);
-      const bob = Math.sin(this.timeline * 1.25 + definition.driftPhase) * 0.22;
       rig.bounceAge += dt;
       const bounce = Math.exp(-rig.bounceAge * 4.5) * Math.sin(rig.bounceAge * 15);
-      root.position.set(definition.x, bob + Math.abs(bounce) * 0.38, THREE.MathUtils.lerp(GAMEPLAY.nearWorldDepth, GAMEPLAY.farWorldDepth, rig.distance));
+      root.position.set(
+        this.islandXAt(definition),
+        this.islandYAt(definition, this.timeline) + Math.abs(bounce) * 0.38,
+        THREE.MathUtils.lerp(GAMEPLAY.nearWorldDepth, GAMEPLAY.farWorldDepth, rig.distance),
+      );
       root.rotation.y = Math.sin(this.timeline * 0.45 + definition.driftPhase) * 0.025;
       root.scale.set(1 + bounce * 0.07, 1 - bounce * 0.1, 1 + bounce * 0.07);
 
@@ -341,6 +411,14 @@ export class DioramaScene {
         ring.position.y = 3.35 + progress * 2.8;
         ring.scale.setScalar(0.55 + progress * 1.05);
         ring.visible = progress < 0.94;
+      });
+      sparkles.forEach((sparkle, index) => {
+        const phase = Number(sparkle.userData.phase ?? index * 1.7);
+        const baseY = Number(sparkle.userData.baseY ?? sparkle.position.y);
+        sparkle.position.y = baseY + Math.sin(this.timeline * 1.8 + phase) * 0.18;
+        sparkle.rotation.y = this.timeline * 0.7 + phase;
+        sparkle.rotation.z = Math.sin(this.timeline * 0.9 + phase) * 0.3;
+        sparkle.scale.setScalar(0.88 + Math.sin(this.timeline * 2.4 + phase) * 0.16);
       });
     }
   }
@@ -529,10 +607,12 @@ export class DioramaScene {
   private updateLabels(targetIslandId: number | null): void {
     this.camera.updateMatrixWorld();
     for (const rig of this.islands.values()) {
-      const { root } = rig.visual;
-      rig.label.classList.toggle('is-target', rig.visual.definition.id === targetIslandId);
+      const { definition, root } = rig.visual;
+      const active = root.visible && this.activeIslandIds.has(definition.id);
+      rig.label.classList.toggle('is-target', active && definition.id === targetIslandId);
+      rig.label.classList.toggle('is-stage-two', this.compactLabels);
       this.projected.set(root.position.x, root.position.y + 6.2, root.position.z).project(this.camera);
-      const visible = this.projected.z > -1 && this.projected.z < 1 && Math.abs(this.projected.x) < 1.15 && Math.abs(this.projected.y) < 1.15;
+      const visible = active && this.projected.z > -1 && this.projected.z < 1 && Math.abs(this.projected.x) < 1.15 && Math.abs(this.projected.y) < 1.15;
       rig.label.style.visibility = visible ? 'visible' : 'hidden';
       if (!visible) continue;
       const projectedX = (this.projected.x * 0.5 + 0.5) * this.labelWidth;
@@ -548,16 +628,28 @@ export class DioramaScene {
     if (!rig) return LAUNCH_POSITION.clone();
     const { definition } = rig.visual;
     const distance = this.distanceAt(definition, time);
+    const x = this.islandXAt(definition);
+    const y = this.islandYAt(definition, time);
     const z = THREE.MathUtils.lerp(GAMEPLAY.nearWorldDepth, GAMEPLAY.farWorldDepth, distance);
-    const y = Math.sin(time * 1.25 + definition.driftPhase) * 0.22;
-    if (kind === 'PERFECT') return new THREE.Vector3(definition.x, y + 2.3, z + 1.05);
-    if (kind === 'FAR') return new THREE.Vector3(definition.x, y + 1.1, z - 2.65);
-    return new THREE.Vector3(definition.x, y + 1.05, z + 2.55);
+    if (kind === 'PERFECT') return new THREE.Vector3(x, y + 2.3, z + 1.05);
+    if (kind === 'FAR') return new THREE.Vector3(x, y + 1.1, z - 2.65);
+    return new THREE.Vector3(x, y + 1.05, z + 2.55);
+  }
+
+  private islandXAt(definition: IslandDefinition): number {
+    return THREE.MathUtils.lerp(definition.x, definition.stage2X, this.stageProgress);
+  }
+
+  private islandYAt(definition: IslandDefinition, time: number): number {
+    const bob = Math.sin(time * 1.25 + definition.driftPhase) * 0.22;
+    const cloudOffset = definition.id >= 3 ? -9 * (1 - this.islandArrivalProgress) : 0;
+    return bob + definition.elevation * this.stageProgress + cloudOffset;
   }
 
   private distanceAt(definition: IslandDefinition, time: number): number {
-    const angle = (Math.PI * 2 * time) / definition.driftPeriod + definition.driftPhase;
-    return THREE.MathUtils.clamp(definition.baseDistance + definition.driftAmp * Math.sin(angle), 0, 1);
+    const driftScale = this.stageTwo ? 1.3 : 1;
+    const angle = (Math.PI * 2 * time) / (definition.driftPeriod / driftScale) + definition.driftPhase;
+    return THREE.MathUtils.clamp(definition.baseDistance + definition.driftAmp * driftScale * Math.sin(angle), 0, 1);
   }
 
   private bounceIsland(id: number): void {
@@ -582,7 +674,8 @@ export class DioramaScene {
   private createIslandLabel(name: string, id: number, color: string): HTMLDivElement {
     const label = document.createElement('div');
     label.className = 'island-label';
-    label.textContent = `${id + 1} • ${name}`;
+    const inputs = ISLANDS.find((definition) => definition.id === id)?.inputs.join('+') ?? String(id + 1);
+    label.textContent = `${inputs} • ${name}`;
     label.style.position = 'absolute';
     label.style.left = '0';
     label.style.top = '0';
@@ -600,6 +693,30 @@ export class DioramaScene {
     label.style.borderBottomColor = color;
     this.labelLayer.appendChild(label);
     return label;
+  }
+
+  private updateLighting(progress: number): void {
+    if (Math.abs(progress - this.lightingProgress) < 0.0001) return;
+    this.lightingProgress = progress;
+
+    const skyTop = new THREE.Color().lerpColors(DAY_SKY_TOP, SUNSET_SKY_TOP, progress);
+    const skyBottom = new THREE.Color().lerpColors(DAY_SKY_BOTTOM, SUNSET_SKY_BOTTOM, progress);
+    const canvas = this.skyTexture.image as HTMLCanvasElement;
+    const context = canvas.getContext('2d');
+    if (context) {
+      const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
+      gradient.addColorStop(0, `#${skyTop.getHexString()}`);
+      gradient.addColorStop(1, `#${skyBottom.getHexString()}`);
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      this.skyTexture.needsUpdate = true;
+    }
+
+    if (this.scene.fog) this.scene.fog.color.copy(skyTop);
+    this.sunlight.color.lerpColors(DAY_SUNLIGHT, SUNSET_SUNLIGHT, progress);
+    this.sunlight.position.lerpVectors(DAY_SUN_POSITION, SUNSET_SUN_POSITION, progress);
+    this.hemisphere.color.lerpColors(DAY_HEMISPHERE, SUNSET_HEMISPHERE, progress);
+    this.cloudMaterial.color.lerpColors(DAY_CLOUDS, SUNSET_CLOUDS, progress);
   }
 
   private detectSoftwareRenderer(): boolean {

@@ -1,6 +1,6 @@
 import './styles.css';
 import { SoundManager } from './audio/SoundManager';
-import { SPEED_STEPS } from './config/gameConfig';
+import { FEATURES, SPEED_STEPS } from './config/gameConfig';
 import { GameEngine } from './game/GameEngine';
 import { InputController } from './game/InputController';
 import type { ResultEvent } from './game/types';
@@ -73,6 +73,7 @@ function startRun(): void {
   wasFeverActive = false;
   sound.stopCharge();
   sound.setSpeedStep(1);
+  input.reset();
   engine.start();
   sound.startBgm();
   sound.playVoice('start');
@@ -117,11 +118,18 @@ const input = new InputController({
   onPress: (islandId) => {
     if (engine.getSnapshot().mode === 'playing') engine.pressIsland(islandId);
   },
+  onRetarget: (islandId) => {
+    if (engine.getSnapshot().mode === 'playing') engine.retargetIsland(islandId);
+  },
   onRelease: (islandId) => {
     if (engine.getSnapshot().mode === 'playing') engine.releaseIsland(islandId);
   },
   onFever: activateFever,
   onConfirm: confirm,
+  allowChords: () => {
+    const snapshot = engine.getSnapshot();
+    return snapshot.mode === 'playing' && snapshot.allowChords && snapshot.stageTransition === null;
+  },
 });
 
 hud.element.querySelectorAll<HTMLElement>('[data-input]').forEach((button) => {
@@ -130,6 +138,11 @@ hud.element.querySelectorAll<HTMLElement>('[data-input]').forEach((button) => {
   button.style.touchAction = 'none';
   button.addEventListener('contextmenu', (event) => event.preventDefault());
   input.bindHoldButton(button, key);
+});
+
+hud.element.querySelectorAll<HTMLElement>('[data-chord]').forEach((button) => {
+  const keys = button.dataset.chord?.split(',').filter(Boolean);
+  if (keys?.length === 2) input.bindChordButton(button, keys);
 });
 
 function soundForResult(result: ResultEvent): string {
@@ -155,14 +168,26 @@ engine.onStepUp = (step) => {
   scene.handleStepUp(step);
   if (engine.getSnapshot().mode !== 'playing') return;
   const speedStep = SPEED_STEPS[step - 1];
-  hud.showSpeedUp(speedStep.label);
+  hud.showSpeedUp(step === 3 && FEATURES.stage2 ? 'STAGE 2 • SUNSET SHIFT' : speedStep.label, step);
   sound.setSpeedStep(step);
   sound.play('speedup');
   sound.playVoice(step === 4 ? 'rush' : 'speedup');
 };
 
+engine.onStageTransitionStart = () => {
+  input.reset();
+  sound.stopCharge();
+  wasCharging = false;
+};
+
 engine.onExpress = () => {
   if (engine.getSnapshot().mode === 'playing') sound.playVoice('express');
+};
+
+engine.onChordHint = (parcel) => {
+  if (engine.getSnapshot().mode !== 'playing') return;
+  hud.showChordHint(parcel);
+  sound.playVoice('voice_chord_hint');
 };
 
 engine.onFeverReady = () => {
@@ -172,6 +197,7 @@ engine.onFeverReady = () => {
 engine.onEnd = (stats) => {
   app.classList.remove('is-playing');
   requestAnimationFrame(() => scene.resize());
+  input.reset();
   sound.stopCharge();
   sound.stopBgm();
   wasCharging = false;

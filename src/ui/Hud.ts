@@ -300,7 +300,7 @@ export class Hud {
     if (ticketSignature !== this.ticketSignature) {
       this.ticketSignature = ticketSignature;
       this.ticketIcon.innerHTML = icon(island.icon);
-      this.ticketIcon.style.color = island.color;
+      this.ticket.style.setProperty('--island-color', island.color);
       setText(this.ticketIsland, island.name.toUpperCase());
       setText(this.ticketType, parcel.type);
       this.ticketType.dataset.type = parcel.type;
@@ -323,7 +323,7 @@ export class Hud {
       this.queueSignature = queueSignature;
       this.ticketNext.innerHTML = upcoming.map((item) => {
         const target = ISLANDS.find((entry) => entry.id === item.targetIslandId) ?? ISLANDS[0];
-        return `<span class="next-parcel" data-type="${item.type}" title="${item.type} to ${target.name}">${icon(item.type.toLowerCase())}<i style="background:${target.color}"></i></span>`;
+        return `<span class="next-parcel" data-type="${item.type}" style="--target-color:${target.color}" title="${item.type} to ${target.name}">${icon(item.type.toLowerCase())}<b>${target.inputs.join('+')}</b></span>`;
       }).join('');
     }
   }

@@ -135,6 +135,13 @@ export class GameEngine {
     this.emitSnapshot();
   }
 
+  goToTutorialStep(index: number): void {
+    if (this.mode !== 'tutorial') return;
+    if (index < 0 || index >= TUTORIAL.cards.length || index === this.tutorialCardIndex) return;
+    this.tutorialCardIndex = index;
+    this.emitSnapshot();
+  }
+
   skipTutorial(): void {
     if (this.mode !== 'tutorial') return;
     this.resetDemoProgress();

@@ -1,40 +1,72 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420" role="img" aria-labelledby="title desc">
-  <title id="title">Release to deliver</title>
-  <desc id="desc">A released parcel arcs from the conveyor toward a floating island with a perfect score.</desc>
+  <title id="title">Release to deliver before parcels drop</title>
+  <desc id="desc">Lift your finger inside the target zone to launch the parcel onto the island before the wait timer runs out.</desc>
   <defs>
     <filter id="shadow" x="-40%" y="-40%" width="180%" height="200%">
-      <feDropShadow dx="0" dy="8" stdDeviation="0" flood-color="#2B211E" flood-opacity="0.16"/>
+      <feDropShadow dx="0" dy="7" stdDeviation="0" flood-color="#2B211E" flood-opacity="0.16"/>
     </filter>
   </defs>
   <rect width="720" height="420" rx="30" fill="#DDF1FF"/>
-  <path d="M0 342c91-42 167 17 255-7 104-28 177 20 268-2 78-19 134 1 197-21v108H0Z" fill="#FFF6E9"/>
-  <g transform="translate(48 235)" filter="url(#shadow)">
-    <path d="M0 65h262l-28 62H28Z" fill="#E8B88A" stroke="#2B211E" stroke-width="6" stroke-linejoin="round"/>
-    <path d="M14 65h236" stroke="#2B211E" stroke-width="22" stroke-linecap="round"/>
-    <path d="M28 65h208" stroke="#FFF6E9" stroke-width="8" stroke-linecap="round" stroke-dasharray="20 18"/>
-    <path d="M42 127v25m173-25v25" stroke="#2B211E" stroke-width="7" stroke-linecap="round"/>
+  <path d="M0 338c91-40 167 16 255-7 104-28 177 20 268-2 78-19 134 1 197-21v112H0Z" fill="#FFF6E9"/>
+
+  <!-- Conveyor & Postal Cat Tossing -->
+  <g transform="translate(40 236)" filter="url(#shadow)">
+    <path d="M0 54h236l-20 46H20Z" fill="#E8B88A" stroke="#2B211E" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M12 54h212" stroke="#2B211E" stroke-width="18" stroke-linecap="round"/>
+    <path d="M24 54h188" stroke="#FFF6E9" stroke-width="6" stroke-linecap="round" stroke-dasharray="16 14"/>
+    <!-- Little Orange Cat -->
+    <g transform="translate(206 -28)">
+      <ellipse cx="32" cy="48" rx="28" ry="30" fill="#FF6B4A" stroke="#2B211E" stroke-width="4.5"/>
+      <polygon points="10,24 18,4 28,18" fill="#FF6B4A" stroke="#2B211E" stroke-width="4" stroke-linejoin="round"/>
+      <polygon points="54,24 46,4 36,18" fill="#FF6B4A" stroke="#2B211E" stroke-width="4" stroke-linejoin="round"/>
+      <rect x="14" y="6" width="36" height="16" rx="7" fill="#4A90E2" stroke="#2B211E" stroke-width="3.5"/>
+      <circle cx="24" cy="38" r="3.5" fill="#2B211E"/>
+      <circle cx="40" cy="38" r="3.5" fill="#2B211E"/>
+      <ellipse cx="27" cy="47" rx="6" ry="4.5" fill="#FFF6E9"/>
+      <ellipse cx="37" cy="47" rx="6" ry="4.5" fill="#FFF6E9"/>
+      <circle cx="32" cy="44" r="2.8" fill="#2B211E"/>
+    </g>
   </g>
-  <g transform="translate(493 120)" filter="url(#shadow)">
-    <path d="M-65 115c11-48 61-73 111-58 49 14 77 58 62 103H-49c-15-10-21-27-16-45Z" fill="#4CC9A0" stroke="#2B211E" stroke-width="6"/>
-    <path d="M-32 64V9h65v62" fill="#FFF6E9" stroke="#2B211E" stroke-width="6" stroke-linejoin="round"/>
-    <path d="m-42 15 43-37 44 37" fill="#FF6B4A" stroke="#2B211E" stroke-width="6" stroke-linejoin="round"/>
-    <rect x="-10" y="29" width="23" height="35" rx="4" fill="#FFD166" stroke="#2B211E" stroke-width="4"/>
-    <path d="M-54 118c29-20 50-9 73-24 28-18 52-10 78 9" fill="none" stroke="#2B211E" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Parcel Launching with Motion Lines (No Full Parabola) -->
+  <g transform="translate(274 106) rotate(-14)" filter="url(#shadow)">
+    <rect x="0" y="0" width="84" height="64" rx="12" fill="#E8B88A" stroke="#2B211E" stroke-width="5"/>
+    <rect x="32" y="0" width="20" height="64" fill="#4CC9A0" stroke="#2B211E" stroke-width="3.5"/>
   </g>
-  <path d="M202 248c56-168 177-196 282-98" fill="none" stroke="#2B211E" stroke-width="5" stroke-linecap="round" stroke-dasharray="9 14"/>
-  <path d="m461 133 25 20-29 8" fill="none" stroke="#2B211E" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-  <g transform="translate(314 83) rotate(12)" filter="url(#shadow)">
-    <path d="m0 28 50-22 50 22v62l-50 23L0 90Z" fill="#FF6B4A" stroke="#2B211E" stroke-width="5" stroke-linejoin="round"/>
-    <path d="m0 28 50 23 50-23M50 51v62M24 17l51 23v20" fill="none" stroke="#2B211E" stroke-width="4" stroke-linejoin="round"/>
-    <path d="M38 45h24v27H38Z" fill="#FFF6E9"/>
+  <g stroke="#FF6B4A" stroke-width="5.5" stroke-linecap="round">
+    <path d="M262 192 276 174m-28 6 12-20m18 32 18-12"/>
   </g>
-  <g transform="translate(470 40) rotate(-7)">
-    <rect x="0" y="0" width="170" height="59" rx="16" fill="#FFD166" stroke="#2B211E" stroke-width="5"/>
-    <text x="85" y="39" text-anchor="middle" fill="#2B211E" font-family="sans-serif" font-size="25" font-weight="800" letter-spacing="2">PERFECT!</text>
+
+  <!-- Paw Releasing Button -->
+  <g transform="translate(284 238)" filter="url(#shadow)">
+    <rect x="18" y="34" width="114" height="72" rx="18" fill="#4CC9A0" stroke="#2B211E" stroke-width="5"/>
+    <text x="75" y="79" text-anchor="middle" fill="#2B211E" font-family="sans-serif" font-size="18" font-weight="800">LET GO!</text>
+    <path d="M46 28c-3-18 6-34 20-38 8-2 14 3 13 10l-1 10 8-18c4-8 16-5 15 4l-2 17 7-11c4-7 15-2 12 6l-9 26Z" fill="#FFF6E9" stroke="#2B211E" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M12 -4V-28m-10 10 10-10 10 10" fill="none" stroke="#FF6B4A" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
-  <g stroke="#FF6B4A" stroke-width="6" stroke-linecap="round">
-    <path d="M273 76 260 54m39 11-2-25m124 6 12-23"/>
+
+  <!-- Target Island & PERFECT Stamp -->
+  <g transform="translate(526 144)" filter="url(#shadow)">
+    <path d="M-78 90c12-48 64-73 116-58 50 14 78 58 64 102H-62c-16-10-22-27-16-44Z" fill="#4CC9A0" stroke="#2B211E" stroke-width="5.5"/>
+    <rect x="-18" y="42" width="44" height="36" rx="8" fill="#FFD166" stroke="#2B211E" stroke-width="4.5"/>
+    <rect x="-8" y="54" width="24" height="5" rx="2.5" fill="#2B211E"/>
+    <path d="M30 42V14h16v12H30" fill="#FF6B4A" stroke="#2B211E" stroke-width="3.5" stroke-linejoin="round"/>
   </g>
-  <text x="48" y="393" fill="#2B211E" font-family="sans-serif" font-size="18" font-weight="700" letter-spacing="3">LET GO TO LAUNCH</text>
-  <text x="674" y="393" text-anchor="end" fill="#2B211E" font-family="monospace" font-size="16" font-weight="700">SPECIAL DELIVERY</text>
+
+  <g transform="translate(468 42) rotate(-5)" filter="url(#shadow)">
+    <rect x="0" y="0" width="192" height="58" rx="16" fill="#FF6B4A" stroke="#2B211E" stroke-width="5"/>
+    <text x="96" y="38" text-anchor="middle" fill="#FFF6E9" font-family="sans-serif" font-size="25" font-weight="800" letter-spacing="1.5">PERFECT!</text>
+  </g>
+
+  <!-- Wait Window Warning Chip -->
+  <g transform="translate(46 42)" filter="url(#shadow)">
+    <rect x="0" y="0" width="236" height="54" rx="15" fill="#FFF6E9" stroke="#2B211E" stroke-width="4.5"/>
+    <circle cx="30" cy="27" r="14" fill="#FFD166" stroke="#2B211E" stroke-width="3.5"/>
+    <path d="M30 19v9l6 4" fill="none" stroke="#2B211E" stroke-width="3.5" stroke-linecap="round"/>
+    <text x="54" y="25" fill="#2B211E" font-family="sans-serif" font-size="12" font-weight="800">DON'T WAIT AT LAUNCH!</text>
+    <text x="54" y="41" fill="#2B211E" font-family="monospace" font-size="10.5" font-weight="700">IDLE PARCELS CAN DROP</text>
+  </g>
+
+  <text x="48" y="392" fill="#2B211E" font-family="sans-serif" font-size="16" font-weight="800" letter-spacing="2">LET GO IN TARGET ZONE</text>
+  <text x="674" y="392" text-anchor="end" fill="#2B211E" font-family="monospace" font-size="15" font-weight="700">TOSS BEFORE IT DROPS</text>
 </svg>

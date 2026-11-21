@@ -1,43 +1,74 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420" role="img" aria-labelledby="title desc">
-  <title id="title">Hold the island key</title>
-  <desc id="desc">A paw holds the yellow island key as the power needle begins to rise.</desc>
+  <title id="title">Match the parcel and hold to charge</title>
+  <desc id="desc">Check the delivery ticket or green parcel ribbon, then hold button 1 as the power needle begins to sweep up.</desc>
   <defs>
     <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%">
-      <feDropShadow dx="0" dy="8" stdDeviation="0" flood-color="#2B211E" flood-opacity="0.16"/>
+      <feDropShadow dx="0" dy="7" stdDeviation="0" flood-color="#2B211E" flood-opacity="0.16"/>
     </filter>
   </defs>
   <rect width="720" height="420" rx="30" fill="#DDF1FF"/>
   <path d="M0 323C112 284 181 347 282 319s183-30 251-4 131 13 187-16v121H0Z" fill="#FFF6E9"/>
   <g fill="#FFF6E9" stroke="#2B211E" stroke-width="4">
-    <path d="M71 103c4-25 42-31 56-11 21-20 59-2 52 24H71c-7-3-7-10 0-13Z"/>
-    <path d="M527 76c4-20 32-25 44-9 17-16 47-2 41 19h-85c-6-2-6-8 0-10Z"/>
+    <path d="M55 95c4-22 36-27 48-9 18-17 50-2 44 20H55c-6-2-6-9 0-11Z"/>
+    <path d="M535 72c4-20 32-25 44-9 17-16 47-2 41 19h-85c-6-2-6-8 0-10Z"/>
   </g>
-  <g filter="url(#shadow)">
-    <path d="M77 270c14-44 61-68 108-54 45 13 70 53 59 94H85c-13-9-14-24-8-40Z" fill="#4CC9A0" stroke="#2B211E" stroke-width="5"/>
-    <path d="M91 272c24-20 49-12 69-25 24-16 48-10 69 8" fill="none" stroke="#2B211E" stroke-width="4" stroke-linecap="round"/>
-    <path d="M130 221v-46h55v51" fill="#FFF6E9" stroke="#2B211E" stroke-width="5" stroke-linejoin="round"/>
-    <path d="m122 180 35-30 36 30" fill="#FF6B4A" stroke="#2B211E" stroke-width="5" stroke-linejoin="round"/>
-    <rect x="148" y="194" width="19" height="27" rx="4" fill="#FFD166" stroke="#2B211E" stroke-width="4"/>
+
+  <!-- Mini Delivery Ticket Callout -->
+  <g transform="translate(46 42)" filter="url(#shadow)">
+    <rect x="0" y="0" width="206" height="94" rx="16" fill="#FFF6E9" stroke="#2B211E" stroke-width="4.5"/>
+    <text x="16" y="25" fill="#2B211E" font-family="monospace" font-size="11" font-weight="700" letter-spacing="1">NEXT DELIVERY</text>
+    <rect x="164" y="10" width="28" height="22" rx="6" fill="#4CC9A0" stroke="#2B211E" stroke-width="3"/>
+    <text x="178" y="26" text-anchor="middle" fill="#2B211E" font-family="monospace" font-size="14" font-weight="700">1</text>
+    <rect x="16" y="38" width="42" height="42" rx="10" fill="#4CC9A0" stroke="#2B211E" stroke-width="3.5"/>
+    <path d="M29 58h16l-2.2 12h-11.6L29 58Z" fill="#FFF6E9" stroke="#2B211E" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M31 58c-3.5-.6-4.5-6.5-.5-8 0.5-4.2 5-4.2 6.5-.5 1.5-3.7 6-3.7 6.5.5 4 1.5 3 7.4-.5 8" fill="#FFF6E9" stroke="#2B211E" stroke-width="2.5" stroke-linecap="round"/>
+    <text x="70" y="57" fill="#2B211E" font-family="sans-serif" font-size="17" font-weight="800">CAKE ISLE</text>
+    <rect x="70" y="65" width="60" height="16" rx="5" fill="#E8B88A"/>
+    <text x="100" y="77" text-anchor="middle" fill="#2B211E" font-family="monospace" font-size="10" font-weight="700">NORMAL</text>
   </g>
-  <g transform="translate(300 48)">
-    <rect x="0" y="0" width="116" height="296" rx="30" fill="#FFF6E9" stroke="#2B211E" stroke-width="6"/>
-    <rect x="28" y="24" width="60" height="248" rx="18" fill="#E8B88A" stroke="#2B211E" stroke-width="4"/>
-    <rect x="32" y="115" width="52" height="60" rx="8" fill="#4CC9A0"/>
-    <rect x="32" y="128" width="52" height="31" rx="5" fill="#FFD166"/>
-    <path d="M17 206h82" stroke="#2B211E" stroke-width="7" stroke-linecap="round"/>
-    <circle cx="99" cy="206" r="13" fill="#FFF6E9" stroke="#2B211E" stroke-width="4"/>
-    <path d="M58 89V53m-14 14 14-14 14 14" fill="none" stroke="#FF6B4A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Conveyor & Parcel with Mint Ribbon -->
+  <g transform="translate(36 226)" filter="url(#shadow)">
+    <path d="M0 54h236l-20 44H20Z" fill="#E8B88A" stroke="#2B211E" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M12 54h212" stroke="#2B211E" stroke-width="18" stroke-linecap="round"/>
+    <path d="M24 54h188" stroke="#FFF6E9" stroke-width="6" stroke-linecap="round" stroke-dasharray="16 14"/>
+    <g transform="translate(68 -14)">
+      <rect x="0" y="0" width="90" height="66" rx="13" fill="#E8B88A" stroke="#2B211E" stroke-width="5"/>
+      <rect x="34" y="0" width="22" height="66" fill="#4CC9A0" stroke="#2B211E" stroke-width="3.5"/>
+      <circle cx="67" cy="33" r="16" fill="#4CC9A0" stroke="#2B211E" stroke-width="3.5"/>
+      <text x="67" y="39" text-anchor="middle" fill="#2B211E" font-family="monospace" font-size="18" font-weight="800">1</text>
+    </g>
   </g>
-  <g transform="translate(468 154)" filter="url(#shadow)">
-    <rect x="0" y="0" width="164" height="142" rx="26" fill="#FFD166" stroke="#2B211E" stroke-width="6"/>
-    <rect x="47" y="28" width="70" height="62" rx="15" fill="#FFF6E9" stroke="#2B211E" stroke-width="5"/>
-    <text x="82" y="75" text-anchor="middle" fill="#2B211E" font-family="monospace" font-size="40" font-weight="700">1</text>
-    <path d="M34 139c-5-31 6-59 28-66 12-4 21 4 20 16l-2 18 12-31c5-13 24-9 23 5l-3 31 11-20c7-12 24-4 20 9l-15 48Z" fill="#FFF6E9" stroke="#2B211E" stroke-width="5" stroke-linejoin="round"/>
-    <path d="M65 117c14-8 32-8 48 1" fill="none" stroke="#E8B88A" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- Dashed Match Line -->
+  <path d="M149 144v54" fill="none" stroke="#FF6B4A" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="7 8"/>
+  <path d="M254 246c26 0 28 0 42 0" fill="none" stroke="#2B211E" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="6 8"/>
+
+  <!-- Actual Power Bar (Warm Cream Track + Orange Good + Cat-Red Perfect) -->
+  <g transform="translate(310 42)" filter="url(#shadow)">
+    <rect x="0" y="0" width="116" height="296" rx="28" fill="#FFF6E9" stroke="#2B211E" stroke-width="5.5"/>
+    <rect x="28" y="24" width="60" height="248" rx="18" fill="#F2DEC6" stroke="#2B211E" stroke-width="4.5"/>
+    <rect x="31" y="102" width="54" height="92" fill="#FF9F1C"/>
+    <rect x="31" y="128" width="54" height="40" fill="#FF6B4A" stroke="#FFF6E9" stroke-width="2.5"/>
+    <text x="58" y="152" text-anchor="middle" fill="#2B211E" font-family="sans-serif" font-size="10" font-weight="800">PERFECT</text>
+    <path d="M16 218h84" stroke="#2B211E" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="100" cy="218" r="12" fill="#FFF6E9" stroke="#2B211E" stroke-width="4"/>
+    <path d="M58 84V48m-13 13 13-13 13 13" fill="none" stroke="#FF6B4A" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
+
+  <!-- Mint Button #1 Held by Paw -->
+  <g transform="translate(476 146)" filter="url(#shadow)">
+    <rect x="0" y="0" width="184" height="148" rx="26" fill="#4CC9A0" stroke="#2B211E" stroke-width="5.5"/>
+    <rect x="57" y="24" width="70" height="60" rx="14" fill="#FFF6E9" stroke="#2B211E" stroke-width="4.5"/>
+    <text x="92" y="68" text-anchor="middle" fill="#2B211E" font-family="monospace" font-size="38" font-weight="800">1</text>
+    <text x="92" y="114" text-anchor="middle" fill="#2B211E" font-family="sans-serif" font-size="19" font-weight="800">CAKE</text>
+    <path d="M48 144c-5-31 6-57 27-64 12-4 20 4 19 16l-2 17 12-29c5-12 23-8 22 5l-3 29 11-19c6-11 23-4 19 9l-14 46Z" fill="#FFF6E9" stroke="#2B211E" stroke-width="4.5" stroke-linejoin="round"/>
+    <path d="M77 123c13-8 30-8 45 1" fill="none" stroke="#E8B88A" stroke-width="4.5" stroke-linecap="round"/>
+  </g>
+
   <g fill="none" stroke="#FF6B4A" stroke-width="6" stroke-linecap="round">
-    <path d="m462 133-13-17m35 5-3-22m145 37 16-16"/>
+    <path d="m468 128-12-16m34 4-3-20m164 34 15-15"/>
   </g>
-  <text x="48" y="375" fill="#2B211E" font-family="sans-serif" font-size="18" font-weight="700" letter-spacing="3">PRESS + HOLD</text>
-  <text x="674" y="375" text-anchor="end" fill="#2B211E" font-family="monospace" font-size="16" font-weight="700">POWER BUILDS</text>
+  <text x="46" y="382" fill="#2B211E" font-family="sans-serif" font-size="16" font-weight="800" letter-spacing="2">CHECK RIBBON OR TICKET</text>
+  <text x="674" y="382" text-anchor="end" fill="#2B211E" font-family="monospace" font-size="15" font-weight="700">HOLD BUTTON OR KEY</text>
 </svg>

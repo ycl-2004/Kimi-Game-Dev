@@ -44,18 +44,43 @@ export const TUTORIAL = {
   cards: [
     {
       image: `${import.meta.env.BASE_URL}tutorial/hold.svg`,
-      title: 'HOLD TO CHARGE',
-      description: 'Hold the button that matches the parcel’s island.',
+      title: 'MATCH & HOLD',
+      description: 'Check where the next parcel is going, then press and hold the matching island control.',
+      details: [
+        'Match the parcel’s colored ribbon or check the Delivery Ticket (1, 2, 3) at top',
+        'Hold a bottom island button, press key 1 / 2 / 3, or press an island label directly',
+        'Charging starts as soon as you hold — wait for the right moment to let go',
+      ],
     },
     {
       image: `${import.meta.env.BASE_URL}tutorial/gold-zone.svg`,
-      title: 'WATCH THE GOLD',
-      description: 'The moving gold zone shows the right throwing power.',
+      title: 'AIM THE POWER BAR',
+      description: 'Hold to sweep the needle back and forth between 0 and 100, aiming for the colored target bands.',
+      details: [
+        'Release inside Orange for GOOD points, or Cat-Red for a PERFECT bullseye',
+        'Missed the sweep? Keep holding — the needle bounces back down and up smoothly',
+        'Islands drift closer and farther, so the target bands shift to match distance',
+      ],
     },
     {
       image: `${import.meta.env.BASE_URL}tutorial/release.svg`,
-      title: 'RELEASE TO DELIVER',
-      description: 'Let go inside the gold for a perfect delivery.',
+      title: 'RELEASE BEFORE IT DROPS',
+      description: 'Let go inside the target zone to launch your parcel and keep your streak alive.',
+      details: [
+        'Too weak or too strong drops the parcel and resets your combo streak',
+        'Don’t leave parcels idle at the end of the belt or they fall off (DROPPED!)',
+        'Holding to charge slows down the drop timer, giving you room to line up',
+      ],
+    },
+    {
+      image: `${import.meta.env.BASE_URL}tutorial/fever.svg`,
+      title: 'FEVER & ROUTE UPGRADES',
+      description: 'Chain 4 deliveries to unlock Fever Mode, and prepare for trickier routes in later stages.',
+      details: [
+        '4 deliveries in a row fills FEVER — tap FEVER (or SPACE) for 8s of 2× score & wider PERFECT',
+        'Level 2 (Normal) speeds up the belt and adds narrow-zone FRAGILE & timed EXPRESS parcels',
+        'Level 3 (Sunset) opens 5 islands — hold 1+2 / 2+3 together or tap the chord bridge pills',
+      ],
     },
   ],
 } as const satisfies TutorialDefinition;
@@ -64,7 +89,7 @@ export const SPEED_TRANSITION = {
   kind: 'speed',
   duration: 4,
   title: 'SPEED UP!',
-  description: 'The belt is picking up speed. Fragile and express parcels are joining the route.',
+  description: 'Belt speed rises! Watch out for narrow-target Fragile crates and 5.5s timed Express rockets.',
   nextLevelId: 'normal',
 } as const satisfies TransitionDefinition;
 
@@ -72,7 +97,7 @@ export const CHORD_TRANSITION = {
   kind: 'chords',
   duration: 4,
   title: 'CHORD SHIFT!',
-  description: 'Five islands ahead. Hold both buttons together for chord deliveries.',
+  description: 'Five islands ahead! Hold both keys together (or tap the 1+2 / 2+3 bridge buttons) for chord deliveries.',
   nextLevelId: 'sunset',
 } as const satisfies TransitionDefinition;
 
@@ -208,7 +233,7 @@ export const GRADES = [
 export const OWL_LINES = {
   start: 'Shift starts! Hold and release!',
   perfect: 'PERFECT THROW!',
-  miss: 'Oof! Watch the gold!',
+  miss: 'Oof! Aim for the PERFECT zone!',
   express: 'EXPRESS! Hurry!',
   chord: 'Two buttons at once!',
   feverReady: "Fever's ready! Tap it!",
@@ -220,4 +245,4 @@ export const OWL_LINES = {
 
 export const REVIEW = { timeoutMs: 2500 };
 export const LEADERBOARD = { storageKey: 'cloud-post-local-v1', maxEntries: 10 };
-export const ONBOARDING_LINE = 'Parcels roll in. Hold the matching island button, then release inside the moving gold zone!';
+export const ONBOARDING_LINE = 'Parcels roll in. Hold the matching island button, then release inside the Cat-Red PERFECT zone!';

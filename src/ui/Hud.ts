@@ -1,4 +1,4 @@
-import { CHORDS, FEVER, FULL_RUN_LEVEL_IDS, GAMEPLAY, ISLANDS, LEVELS } from '../config/gameConfig';
+import { BELT, CHORDS, FEVER, FULL_RUN_LEVEL_IDS, GAMEPLAY, ISLANDS, LEVELS } from '../config/gameConfig';
 import type { GameSnapshot, LevelDefinition, ParcelState, ResultEvent } from '../game/types';
 import { judge } from '../game/PowerBar';
 import { icon, owlPortrait } from './icons';
@@ -258,7 +258,7 @@ export class Hud {
     const index = FULL_RUN_LEVEL_IDS.indexOf(level.id);
     const num = index >= 0 ? index + 1 : 1;
     const sub = level.id === 'slow'
-      ? 'HOLD & RELEASE IN THE GOLD ZONE'
+      ? 'HOLD & RELEASE IN THE PERFECT ZONE'
       : level.id === 'normal'
         ? 'FASTER BELT · FRAGILE & EXPRESS PARCELS'
         : 'SUNSET SHIFT · 5 ISLANDS & 2-KEY CHORDS';
@@ -324,6 +324,10 @@ export class Hud {
   private updateTicket(snapshot: GameSnapshot): void {
     const parcel = snapshot.frontParcel;
     this.ticket.classList.toggle('is-empty', !parcel);
+    this.ticket.classList.toggle(
+      'is-hurry',
+      parcel !== null && !snapshot.charging && parcel.beltX >= BELT.launchX && parcel.waitRemaining <= 2.2,
+    );
     if (!parcel) {
       if (this.ticketSignature !== 'empty') {
         this.ticketSignature = 'empty';

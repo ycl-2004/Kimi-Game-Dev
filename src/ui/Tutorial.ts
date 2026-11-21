@@ -12,12 +12,14 @@ export class Tutorial {
   readonly element: HTMLElement;
   onNext: () => void = () => undefined;
   onPrev: () => void = () => undefined;
+  onSelectStep: (index: number) => void = () => undefined;
   onSkip: () => void = () => undefined;
 
   private readonly image: HTMLImageElement;
   private readonly step: HTMLElement;
   private readonly title: HTMLElement;
   private readonly description: HTMLElement;
+  private readonly details: HTMLUListElement;
   private readonly counter: HTMLElement;
   private readonly progress: HTMLElement;
   private readonly progressFill: HTMLElement;
@@ -38,8 +40,8 @@ export class Tutorial {
       <div class="tutorial-shell">
         <header class="tutorial-header">
           <span>CLOUD POST! <i>/</i> FLIGHT SCHOOL</span>
-          <div class="tutorial-dots" aria-hidden="true">
-            ${TUTORIAL.cards.map((_, i) => `<span class="tutorial-dot" data-step="${i}"></span>`).join('')}
+          <div class="tutorial-dots" role="tablist" aria-label="Tutorial steps">
+            ${TUTORIAL.cards.map((_, i) => `<button type="button" class="tutorial-dot" data-step="${i}" aria-label="Step ${i + 1}"></button>`).join('')}
           </div>
           <span class="tutorial-counter">01 / ${String(TUTORIAL.cards.length).padStart(2, '0')}</span>
         </header>
@@ -51,6 +53,7 @@ export class Tutorial {
             <span class="tutorial-step">STEP 01</span>
             <h2 class="tutorial-title"></h2>
             <p class="tutorial-description"></p>
+            <ul class="tutorial-details"></ul>
           </div>
         </div>
         <div class="tutorial-progress" role="progressbar" aria-label="Tutorial progress" aria-valuemin="1" aria-valuemax="${TUTORIAL.cards.length}" aria-valuenow="1">
@@ -71,6 +74,7 @@ export class Tutorial {
     this.step = required(this.element, '.tutorial-step');
     this.title = required(this.element, '.tutorial-title');
     this.description = required(this.element, '.tutorial-description');
+    this.details = required(this.element, '.tutorial-details');
     this.counter = required(this.element, '.tutorial-counter');
     this.progress = required(this.element, '.tutorial-progress');
     this.progressFill = required(this.element, '.tutorial-progress-fill');
@@ -85,6 +89,12 @@ export class Tutorial {
       preload.src = card.image;
     });
 
+    this.dots.querySelectorAll<HTMLButtonElement>('.tutorial-dot').forEach((dot) => {
+      dot.addEventListener('click', () => {
+        const index = Number(dot.dataset.step);
+        if (this.visible && Number.isFinite(index)) this.onSelectStep(index);
+      });
+    });
     this.nextButton.addEventListener('click', () => {
       if (this.visible) this.onNext();
     });
@@ -126,6 +136,11 @@ export class Tutorial {
     this.step.textContent = `STEP ${String(index + 1).padStart(2, '0')}`;
     this.title.textContent = card.title;
     this.description.textContent = card.description;
+    this.details.replaceChildren(...(card.details ?? []).map((item) => {
+      const li = document.createElement('li');
+      li.textContent = item;
+      return li;
+    }));
     this.counter.textContent = `${String(index + 1).padStart(2, '0')} / ${String(TUTORIAL.cards.length).padStart(2, '0')}`;
 
     this.backButton.hidden = index === 0;

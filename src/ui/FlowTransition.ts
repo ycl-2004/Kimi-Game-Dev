@@ -57,19 +57,19 @@ export class FlowTransition {
             </div>
             <div class="flow-multiplier">SCORE MULTIPLIER <strong class="flow-multiplier-value">×1.5</strong></div>
             <div class="flow-new-parcels">
-              <span class="flow-parcel-chip is-fragile">${icon('fragile')}<span>FRAGILE · NARROW GOLD</span></span>
-              <span class="flow-parcel-chip is-express">${icon('express')}<span>EXPRESS · TIMED</span></span>
+              <span class="flow-parcel-chip is-fragile">${icon('fragile')}<span>FRAGILE · NARROW PERFECT</span></span>
+              <span class="flow-parcel-chip is-express">${icon('express')}<span>EXPRESS · 5.5s TIMER</span></span>
             </div>
           </div>
           <div class="flow-chord-view">
             <div class="flow-chord-destination flow-chord-berry" style="background:${BERRY_ISLAND.color}">
               <span class="flow-chord-island">${icon('berry')}</span>
-              <div class="flow-chord-copy"><strong>BERRY FARM</strong><span>HOLD TOGETHER · RELEASE TOGETHER</span></div>
+              <div class="flow-chord-copy"><strong>BERRY FARM</strong><span>TAP 1+2 BRIDGE OR HOLD 1 &amp; 2</span></div>
               <div class="flow-chord-keys" aria-label="Hold keys 1 and 2 together"><kbd>1</kbd><i>+</i><kbd>2</kbd></div>
             </div>
             <div class="flow-chord-destination flow-chord-observatory" style="background:${STARS_ISLAND.color}">
               <span class="flow-chord-island">${icon('observatory')}</span>
-              <div class="flow-chord-copy"><strong>STAR OBSERVATORY</strong><span>HOLD TOGETHER · RELEASE TOGETHER</span></div>
+              <div class="flow-chord-copy"><strong>STAR OBSERVATORY</strong><span>TAP 2+3 BRIDGE OR HOLD 2 &amp; 3</span></div>
               <div class="flow-chord-keys" aria-label="Hold keys 2 and 3 together"><kbd>2</kbd><i>+</i><kbd>3</kbd></div>
             </div>
             <p class="flow-five-islands">FIVE ISLANDS · TWO-KEY DELIVERIES</p>

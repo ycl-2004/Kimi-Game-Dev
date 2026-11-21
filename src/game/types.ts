@@ -62,6 +62,7 @@ export interface TutorialCard {
   image: string;
   title: string;
   description: string;
+  details?: readonly string[];
 }
 
 export interface TutorialDefinition {

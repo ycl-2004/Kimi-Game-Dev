@@ -154,6 +154,7 @@ receipt.onSelectLevel = startPractice;
 receipt.onEndShift = returnToTitle;
 tutorial.onNext = () => engine.nextTutorialStep();
 tutorial.onPrev = () => engine.prevTutorialStep();
+tutorial.onSelectStep = (index) => engine.goToTutorialStep(index);
 tutorial.onSkip = () => engine.skipTutorial();
 flowTransition.onReady = () => {
   void sound.unlock();

@@ -24,7 +24,7 @@ const DAY_SUN_POSITION = new THREE.Vector3(-14, 24, 16);
 const SUNSET_SUN_POSITION = new THREE.Vector3(-22, 9, 14);
 const CAMERA_TARGET = new THREE.Vector3(0, 0, -5);
 const CAMERA_OFFSET = new THREE.Vector3(16, 18, 32);
-const PORTRAIT_TARGET = new THREE.Vector3(-0.7, -0.5, -4.5);
+const PORTRAIT_TARGET = new THREE.Vector3(-0.7, 0.35, -4.5);
 const PORTRAIT_OFFSET = new THREE.Vector3(8.5, 20.5, 34);
 
 interface IslandRig {
@@ -102,6 +102,7 @@ export class DioramaScene {
   private lightingProgress = -1;
   private cameraFit = 1;
   private portraitAspect = false;
+  private shortLandscape = false;
   private compactLabels = false;
   private readonly activeIslandIds = new Set<number>([0, 1, 2]);
 
@@ -332,8 +333,9 @@ export class DioramaScene {
     this.renderer.setSize(width, height, false);
     this.camera.aspect = aspect;
     this.portraitAspect = aspect < 0.78;
-    this.camera.fov = this.portraitAspect ? 45 : 39;
-    this.cameraFit = this.portraitAspect ? Math.max(1, 0.82 / aspect) : Math.max(1, 0.92 / aspect);
+    this.shortLandscape = !this.portraitAspect && height <= 520;
+    this.camera.fov = this.portraitAspect ? 46 : this.shortLandscape ? 43 : 39;
+    this.cameraFit = this.portraitAspect ? Math.max(1, 0.84 / aspect) : this.shortLandscape ? 1.08 : Math.max(1, 0.92 / aspect);
     this.updateCamera();
     this.camera.updateProjectionMatrix();
     this.updateLabelLayout();
@@ -370,15 +372,16 @@ export class DioramaScene {
     this.temp.copy(baseTarget);
     if (!this.portraitAspect) {
       this.temp.x += 0.9 + this.stageProgress * 0.6;
+      if (this.shortLandscape) this.temp.y += 0.65;
     }
-    const dolly = 1 + this.stageProgress * (this.portraitAspect ? 0.14 : 0.12);
+    const dolly = 1 + this.stageProgress * (this.portraitAspect ? 0.24 : 0.14);
     this.camera.position.copy(this.temp).addScaledVector(baseOffset, this.cameraFit * dolly);
     this.camera.lookAt(this.temp);
     this.camera.updateMatrixWorld();
   }
 
   private updateLabelLayout(): void {
-    const mobile = this.labelWidth < 600;
+    const mobile = this.labelWidth < 600 || this.labelHeight < 520;
     for (const rig of this.islands.values()) {
       const { id, name, short, inputs } = rig.visual.definition;
       const key = inputs.join('+');
@@ -590,6 +593,7 @@ export class DioramaScene {
 
   private updateLabels(targetIslandId: number | null): void {
     this.camera.updateMatrixWorld();
+    const compactScreen = this.labelWidth < 600 || this.labelHeight < 520;
     for (const rig of this.islands.values()) {
       const { definition, root } = rig.visual;
       const active = root.visible && this.activeIslandIds.has(definition.id);
@@ -602,7 +606,8 @@ export class DioramaScene {
       const projectedX = (this.projected.x * 0.5 + 0.5) * this.labelWidth;
       const halfLabelWidth = rig.label.offsetWidth * 0.5;
       const x = THREE.MathUtils.clamp(projectedX, halfLabelWidth + 6, this.labelWidth - halfLabelWidth - 6);
-      const y = (-this.projected.y * 0.5 + 0.5) * this.labelHeight;
+      const chordLift = this.compactLabels && compactScreen && (definition.id === 3 || definition.id === 4) ? 28 : 0;
+      const y = (-this.projected.y * 0.5 + 0.5) * this.labelHeight - chordLift;
       rig.label.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -100%)`;
     }
   }

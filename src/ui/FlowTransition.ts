@@ -81,7 +81,7 @@ export class FlowTransition {
         </div>
         <footer class="flow-transition-footer">
           <button class="flow-ready-button primary-button" type="button">
-            <span>READY TO START!</span>${icon('arrow')}<kbd class="key-hint">ENTER</kbd>
+            <span class="flow-ready-label">READY TO START!</span><span class="flow-ready-short" aria-hidden="true">START</span>${icon('arrow')}<kbd class="key-hint">ENTER</kbd>
           </button>
         </footer>
       </div>`;

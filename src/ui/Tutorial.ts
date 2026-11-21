@@ -65,7 +65,7 @@ export class Tutorial {
             <button class="tutorial-skip" type="button" aria-label="Skip tutorial">SKIP</button>
           </div>
           <button class="tutorial-next primary-button" type="button">
-            <span class="tutorial-next-label">NEXT</span>${icon('arrow')}<kbd class="key-hint">ENTER</kbd>
+            <span class="tutorial-next-label">NEXT</span><span class="tutorial-start-short" aria-hidden="true">START</span>${icon('arrow')}<kbd class="key-hint">ENTER</kbd>
           </button>
         </footer>
       </div>`;

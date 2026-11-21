@@ -49,7 +49,7 @@ function normalizedName(name: string): string {
 }
 
 function audioUrl(name: string): string {
-  return `/audio/${encodeURIComponent(name)}.mp3`;
+  return `${import.meta.env.BASE_URL}audio/${encodeURIComponent(name)}.mp3`;
 }
 
 function voiceFile(name: string): string {

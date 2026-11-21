@@ -38,17 +38,17 @@ export const TUTORIAL = {
   duration: 5,
   cards: [
     {
-      image: '/tutorial/hold.svg',
+      image: `${import.meta.env.BASE_URL}tutorial/hold.svg`,
       title: 'HOLD TO CHARGE',
       description: 'Hold the button that matches the parcel’s island.',
     },
     {
-      image: '/tutorial/gold-zone.svg',
+      image: `${import.meta.env.BASE_URL}tutorial/gold-zone.svg`,
       title: 'WATCH THE GOLD',
       description: 'The moving gold zone shows the right throwing power.',
     },
     {
-      image: '/tutorial/release.svg',
+      image: `${import.meta.env.BASE_URL}tutorial/release.svg`,
       title: 'RELEASE TO DELIVER',
       description: 'Let go inside the gold for a perfect delivery.',
     },

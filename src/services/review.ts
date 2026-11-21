@@ -146,7 +146,7 @@ export async function getReview(stats: ReviewStats): Promise<ReviewResult> {
 
   try {
     const response = await Promise.race([
-      fetch('/api/review', {
+      fetch(`${import.meta.env.BASE_URL}api/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(stats),

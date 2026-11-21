@@ -15,13 +15,13 @@ export class TitleScreen {
   constructor() {
     this.element = document.createElement('section');
     this.element.className = 'title-screen';
-    this.element.setAttribute('aria-label', 'CLOUD POST! title screen');
+    this.element.setAttribute('aria-label', 'POP ISLAND title screen');
     this.element.innerHTML = `
       <div class="title-content">
         <div class="title-eyebrow"><span></span> SPECIAL DELIVERY DIVISION <span></span></div>
         <div class="title-lockup">
           ${logoMark()}
-          <h1><span>CLOUD</span><span>POST!</span></h1>
+          <h1><span>POP</span><span>ISLAND</span></h1>
         </div>
         <p class="title-tagline">${ONBOARDING_LINE}</p>
         <button class="start-button primary-button" type="button">

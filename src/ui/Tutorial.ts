@@ -34,12 +34,12 @@ export class Tutorial {
   constructor() {
     this.element = document.createElement('section');
     this.element.className = 'tutorial-screen is-hidden';
-    this.element.setAttribute('aria-label', 'How to play CLOUD POST!');
+    this.element.setAttribute('aria-label', 'How to play POP ISLAND');
     this.element.setAttribute('aria-hidden', 'true');
     this.element.innerHTML = `
       <div class="tutorial-shell">
         <header class="tutorial-header">
-          <span>CLOUD POST! <i>/</i> FLIGHT SCHOOL</span>
+          <span>POP ISLAND <i>/</i> FLIGHT SCHOOL</span>
           <div class="tutorial-dots" role="tablist" aria-label="Tutorial steps">
             ${TUTORIAL.cards.map((_, i) => `<button type="button" class="tutorial-dot" data-step="${i}" aria-label="Step ${i + 1}"></button>`).join('')}
           </div>

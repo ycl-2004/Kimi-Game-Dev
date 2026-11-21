@@ -5,7 +5,7 @@ import { getReview } from '../services/review';
 import { icon, owlPortrait } from './icons';
 
 const GRADE_TITLES = {
-  'S+': 'Cloud Post Legend',
+  'S+': 'Pop Island Legend',
   S: 'Sky Courier',
   A: 'First-Class Flyer',
   B: 'Cloud Carrier',
@@ -44,7 +44,7 @@ export class Receipt {
           <div class="receipt-summary">
             <header class="receipt-header">
               <span>SPECIAL DELIVERY DIVISION</span>
-              <h2>CLOUD POST!</h2>
+              <h2>POP ISLAND</h2>
               <p class="receipt-kind">POSTAL INSPECTION RECEIPT</p>
               <div class="receipt-meta"><span class="receipt-shift">SHIFT 01</span><span class="receipt-duration"></span></div>
             </header>
@@ -87,7 +87,7 @@ export class Receipt {
               <button class="end-shift-button" type="button"><span>END SHIFT</span>${icon('close')}</button>
             </div>
           </div>
-          <p class="receipt-footer">THANK YOU FOR FLYING CLOUD POST <span>✦</span> KEEP YOUR WHISKERS DRY</p>
+          <p class="receipt-footer">THANK YOU FOR FLYING POP ISLAND <span>✦</span> KEEP YOUR WHISKERS DRY</p>
         </div>
         <div class="receipt-tear receipt-tear-bottom"></div>
       </div>`;

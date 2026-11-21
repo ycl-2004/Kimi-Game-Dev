@@ -26,8 +26,8 @@ export function buildParcel(factory: ClayFactory, parcel: ParcelState): ParcelVi
     countdownRing: null,
   };
 
-  if (parcel.type === 'FRAGILE') buildFragile(factory, group);
-  else if (parcel.type === 'EXPRESS') buildExpress(factory, group, visual);
+  if (parcel.type === 'FRAGILE') buildFragile(factory, group, parcel.targetIslandId);
+  else if (parcel.type === 'EXPRESS') buildExpress(factory, group, visual, parcel.targetIslandId);
   else buildNormal(factory, group, parcel.targetIslandId);
 
   updateParcelCountdown(visual, parcel.expressRemaining);
@@ -46,24 +46,12 @@ export function updateParcelCountdown(visual: ParcelVisual, remaining: number | 
 function buildNormal(factory: ClayFactory, group: THREE.Group, islandId: number): void {
   const box = factory.mesh(factory.rounded(1.18, 0.88, 1.02, 0.13), PALETTE.wood);
   group.add(box);
-  const islandColor = ISLANDS.find((island) => island.id === islandId)?.color ?? PALETTE.mint;
-
-  const ribbonTop = factory.mesh(factory.rounded(0.22, 0.06, 1.05, 0.025), islandColor);
-  ribbonTop.position.y = 0.45;
-  group.add(ribbonTop);
-  const ribbonFront = factory.mesh(factory.rounded(0.22, 0.9, 0.055, 0.025), islandColor);
-  ribbonFront.position.z = 0.52;
-  group.add(ribbonFront);
-
-  const badge = factory.mesh(factory.cylinder(0.23, 0.23, 0.055, 16), islandColor);
-  badge.rotation.x = Math.PI / 2;
-  badge.position.set(0.34, 0.05, 0.55);
-  group.add(badge);
-  addIslandIcon(factory, group, islandId);
+  addDestinationRibbon(factory, group, islandId, 0, 0.45, 0.52, 0.9, 1.05);
+  addDestinationBadge(factory, group, islandId, 0.34, 0.05, 0.55);
 }
 
-function buildFragile(factory: ClayFactory, group: THREE.Group): void {
-  const crate = factory.mesh(factory.rounded(1.2, 0.94, 1.04, 0.1), PALETTE.blue, { transparent: true, opacity: 0.68 });
+function buildFragile(factory: ClayFactory, group: THREE.Group, islandId: number): void {
+  const crate = factory.mesh(factory.rounded(1.2, 0.94, 1.04, 0.1), PALETTE.blue);
   group.add(crate);
 
   [-0.51, 0.51].forEach((x) => {
@@ -73,27 +61,30 @@ function buildFragile(factory: ClayFactory, group: THREE.Group): void {
       group.add(edge);
     });
   });
-  const tape = new THREE.Mesh(factory.plane(0.92, 0.24), getFragileTapeMaterial());
-  tape.position.set(0, -0.22, 0.526);
+
+  addDestinationRibbon(factory, group, islandId, -0.22, 0.48, 0.53, 0.94, 1.08);
+  addDestinationBadge(factory, group, islandId, 0.32, 0.15, 0.56);
+
+  const tape = new THREE.Mesh(factory.plane(0.86, 0.22), getFragileTapeMaterial());
+  tape.position.set(0, -0.24, 0.56);
   group.add(tape);
 
   const cup = factory.mesh(factory.cylinder(0.17, 0.13, 0.28, 12), PALETTE.paper);
-  cup.position.set(0.1, 0.61, 0);
+  cup.position.set(0.22, 0.62, 0);
   group.add(cup);
   const handle = factory.mesh(factory.torus(0.12, 0.035, Math.PI * 1.65), PALETTE.paper);
-  handle.position.set(0.28, 0.64, 0);
+  handle.position.set(0.4, 0.65, 0);
   group.add(handle);
   const tea = factory.mesh(factory.cylinder(0.13, 0.13, 0.025, 12), PALETTE.wood);
-  tea.position.set(0.1, 0.76, 0);
+  tea.position.set(0.22, 0.77, 0);
   group.add(tea);
 }
 
-function buildExpress(factory: ClayFactory, group: THREE.Group, visual: ParcelVisual): void {
+function buildExpress(factory: ClayFactory, group: THREE.Group, visual: ParcelVisual, islandId: number): void {
   const box = factory.mesh(factory.rounded(1.2, 0.88, 1.02, 0.13), PALETTE.red);
   group.add(box);
-  const band = factory.mesh(factory.rounded(0.22, 0.06, 1.06, 0.025), PALETTE.yellow);
-  band.position.y = 0.45;
-  group.add(band);
+  addDestinationRibbon(factory, group, islandId, 0, 0.45, 0.52, 0.9, 1.06);
+  addDestinationBadge(factory, group, islandId, 0.34, 0.08, 0.55);
 
   [-1, 1].forEach((side) => {
     const wing = factory.mesh(factory.rounded(0.68, 0.12, 0.72, 0.08), PALETTE.paper);
@@ -124,27 +115,66 @@ function buildExpress(factory: ClayFactory, group: THREE.Group, visual: ParcelVi
   }
 }
 
-function addIslandIcon(factory: ClayFactory, group: THREE.Group, islandId: number): void {
+function islandColorFor(islandId: number): string {
+  return ISLANDS.find((island) => island.id === islandId)?.color ?? PALETTE.mint;
+}
+
+function addDestinationRibbon(
+  factory: ClayFactory,
+  group: THREE.Group,
+  islandId: number,
+  x: number,
+  topY: number,
+  frontZ: number,
+  height: number,
+  depth: number,
+): void {
+  const islandColor = islandColorFor(islandId);
+  const ribbonTop = factory.mesh(factory.rounded(0.22, 0.06, depth, 0.025), islandColor);
+  ribbonTop.position.set(x, topY, 0);
+  group.add(ribbonTop);
+  const ribbonFront = factory.mesh(factory.rounded(0.22, height, 0.055, 0.025), islandColor);
+  ribbonFront.position.set(x, 0, frontZ);
+  group.add(ribbonFront);
+}
+
+function addDestinationBadge(
+  factory: ClayFactory,
+  group: THREE.Group,
+  islandId: number,
+  x: number,
+  y: number,
+  z: number,
+): void {
+  const islandColor = islandColorFor(islandId);
+  const badge = factory.mesh(factory.cylinder(0.23, 0.23, 0.055, 16), islandColor);
+  badge.rotation.x = Math.PI / 2;
+  badge.position.set(x, y, z);
+  group.add(badge);
+  addIslandIcon(factory, group, islandId, x, y, z + 0.04);
+}
+
+function addIslandIcon(factory: ClayFactory, group: THREE.Group, islandId: number, x: number, y: number, z: number): void {
   if (islandId === 0) {
     const cake = factory.mesh(factory.cylinder(0.08, 0.06, 0.12, 8), PALETTE.paper);
     cake.rotation.x = Math.PI / 2;
-    cake.position.set(0.34, 0.03, 0.59);
+    cake.position.set(x, y - 0.02, z);
     group.add(cake);
     const frosting = factory.mesh(factory.sphere(0.075, 8, 6), PALETTE.paper);
-    frosting.position.set(0.34, 0.12, 0.59);
+    frosting.position.set(x, y + 0.07, z);
     group.add(frosting);
   } else if (islandId === 1) {
     const tower = factory.mesh(factory.rounded(0.09, 0.2, 0.04, 0.02), PALETTE.paper);
-    tower.position.set(0.34, 0.05, 0.59);
+    tower.position.set(x, y, z);
     group.add(tower);
     const roof = factory.mesh(factory.cone(0.09, 0.11, 8), PALETTE.paper);
     roof.rotation.x = Math.PI / 2;
-    roof.position.set(0.34, 0.17, 0.59);
+    roof.position.set(x, y + 0.12, z);
     group.add(roof);
   } else {
     const volcano = factory.mesh(factory.cone(0.11, 0.2, 8), PALETTE.paper);
     volcano.rotation.x = Math.PI / 2;
-    volcano.position.set(0.34, 0.05, 0.59);
+    volcano.position.set(x, y, z);
     group.add(volcano);
   }
 }
@@ -158,8 +188,11 @@ function getFragileTapeMaterial(): THREE.MeshStandardMaterial {
   if (context) {
     context.fillStyle = PALETTE.paper;
     context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = PALETTE.red;
+    context.fillRect(0, 0, canvas.width, 8);
+    context.fillRect(0, canvas.height - 8, canvas.width, 8);
     context.fillStyle = PALETTE.ink;
-    context.font = '700 31px sans-serif';
+    context.font = '800 36px sans-serif';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.fillText('FRAGILE', 128, 34);

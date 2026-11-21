@@ -28,10 +28,10 @@ export const STAGES = [
 export const RUN_LENGTH = STAGES[STAGES.length - 1].end;
 
 export const SPEED_STEPS = [
-  { step: 1, start: 0, end: 15, beltSpeed: 1, waitWindow: 3, multiplier: 1, label: 'SPEED UP!', mix: { NORMAL: 1, FRAGILE: 0, EXPRESS: 0 } },
-  { step: 2, start: 15, end: 30, beltSpeed: 1.2, waitWindow: 2.6, multiplier: 1.5, label: 'SPEED UP!', mix: { NORMAL: 0.5, FRAGILE: 0.3, EXPRESS: 0.2 } },
-  { step: 3, start: 30, end: 45, beltSpeed: 1.45, waitWindow: 2.2, multiplier: 2, label: 'SPEED UP!', mix: { NORMAL: 0.35, FRAGILE: 0.35, EXPRESS: 0.3 } },
-  { step: 4, start: 45, end: 60, beltSpeed: 1.7, waitWindow: 1.9, multiplier: 2.5, label: 'RUSH HOUR!', mix: { NORMAL: 0.2, FRAGILE: 0.4, EXPRESS: 0.4 } },
+  { step: 1, start: 0, end: 15, beltSpeed: 1, waitWindow: 7, multiplier: 1, label: 'SPEED UP!', mix: { NORMAL: 1, FRAGILE: 0, EXPRESS: 0 } },
+  { step: 2, start: 15, end: 30, beltSpeed: 1.15, waitWindow: 6, multiplier: 1.5, label: 'SPEED UP!', mix: { NORMAL: 0.5, FRAGILE: 0.3, EXPRESS: 0.2 } },
+  { step: 3, start: 30, end: 45, beltSpeed: 1.35, waitWindow: 5, multiplier: 2, label: 'SPEED UP!', mix: { NORMAL: 0.35, FRAGILE: 0.35, EXPRESS: 0.3 } },
+  { step: 4, start: 45, end: 60, beltSpeed: 1.55, waitWindow: 4.2, multiplier: 2.5, label: 'RUSH HOUR!', mix: { NORMAL: 0.2, FRAGILE: 0.4, EXPRESS: 0.4 } },
 ] as const;
 
 export const PARCEL_TYPES = {
@@ -59,10 +59,24 @@ export const FEVER = {
   scoreMultiplier: 2,
 };
 
+export const BELT = {
+  startX: -13.2,
+  initialX: -2.8,
+  launchX: 2.9,
+  endX: 3.65,
+  maxQueueSize: 3,
+  parcelSpacing: 2.8,
+  moveSpeed: 3.5,
+  catchupThresholdX: -3.5,
+  emptyCatchupMultiplier: 1.6,
+  initialSpawnDelay: 0.75,
+  spawnDelayMin: 1.35,
+  spawnDelayMax: 2.45,
+  emptySpawnDelay: 0.25,
+} as const;
+
 export const GAMEPLAY = {
-  queueSize: 1,
-  parcelEntryDuration: 0.75,
-  expressDuration: 6,
+  expressDuration: 5.5,
   flightDuration: 0.9,
   nearWorldDepth: -8,
   farWorldDepth: -22,

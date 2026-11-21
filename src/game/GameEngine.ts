@@ -1,4 +1,5 @@
 import {
+  BELT,
   FEATURES,
   FEVER,
   GAMEPLAY,
@@ -49,7 +50,7 @@ export class GameEngine {
   private speedStepIndex = 0;
   private queue: ParcelState[] = [];
   private nextParcelId = 1;
-  private nextParcelDelay = 0;
+  private nextSpawnDelay = 0;
   private preparedParcelId: number | null = null;
   private charging: ChargingState | null = null;
   private selectedIslandId: number = STAGES[0].islandIds[0];
@@ -67,7 +68,7 @@ export class GameEngine {
   private attractFeverDelay: number | null = null;
 
   constructor(private readonly getIslandDistance: (id: number) => number) {
-    this.fillQueue();
+    this.seedInitialQueue();
     this.prepareFrontParcel();
   }
 
@@ -81,7 +82,7 @@ export class GameEngine {
     this.speedStepIndex = 0;
     this.queue = [];
     this.nextParcelId = 1;
-    this.nextParcelDelay = 0;
+    this.nextSpawnDelay = 0;
     this.preparedParcelId = null;
     this.charging = null;
     this.selectedIslandId = STAGES[0].islandIds[0];
@@ -95,7 +96,7 @@ export class GameEngine {
     this.owlText = OWL_LINES.start;
     this.attractShot = null;
     this.attractFeverDelay = null;
-    this.fillQueue();
+    this.seedInitialQueue();
     this.prepareFrontParcel();
     this.emitSnapshot();
   }
@@ -150,8 +151,9 @@ export class GameEngine {
       speedStep: speedStep.step,
       multiplier: speedStep.multiplier,
       beltSpeed: speedStep.beltSpeed,
+      beltFlowSpeed: this.currentBeltFlowSpeed(),
       frontParcel: frontParcel ? this.copyParcel(frontParcel) : null,
-      parcelReady: frontParcel !== null && this.nextParcelDelay === 0,
+      parcelReady: this.isFrontParcelReady(),
       queue: this.queue.map((parcel) => this.copyParcel(parcel)),
       charging: this.charging ? { ...this.charging } : null,
       selectedIslandId: this.selectedIslandId,
@@ -173,8 +175,20 @@ export class GameEngine {
     return SPEED_STEPS[this.speedStepIndex];
   }
 
-  private parcelEntryDelay(): number {
-    return GAMEPLAY.parcelEntryDuration / this.speedStep.beltSpeed;
+  private isFrontParcelReady(): boolean {
+    const frontParcel = this.queue[0];
+    return frontParcel !== undefined && this.preparedParcelId === frontParcel.id;
+  }
+
+  private currentBeltFlowSpeed(): number {
+    const frontParcel = this.queue[0];
+    const needsCatchup = !frontParcel || frontParcel.beltX < BELT.catchupThresholdX;
+    return BELT.moveSpeed * this.speedStep.beltSpeed * (needsCatchup ? BELT.emptyCatchupMultiplier : 1);
+  }
+
+  private randomSpawnDelay(): number {
+    const delay = BELT.spawnDelayMin + Math.random() * (BELT.spawnDelayMax - BELT.spawnDelayMin);
+    return delay / this.speedStep.beltSpeed;
   }
 
   private get stage() {
@@ -196,7 +210,7 @@ export class GameEngine {
       if (nextStep && segmentEnd === nextStep.start && nextStep.start < RUN_LENGTH) {
         const previousBeltSpeed = this.speedStep.beltSpeed;
         this.speedStepIndex += 1;
-        this.nextParcelDelay *= previousBeltSpeed / nextStep.beltSpeed;
+        this.nextSpawnDelay *= previousBeltSpeed / nextStep.beltSpeed;
         this.owlText = nextStep.label === 'RUSH HOUR!' ? OWL_LINES.rush : OWL_LINES.speedup;
         const frontParcel = this.queue[0];
         if (frontParcel) frontParcel.waitRemaining = Math.min(frontParcel.waitRemaining, nextStep.waitWindow);
@@ -213,10 +227,7 @@ export class GameEngine {
       if (this.feverRemaining === 0) this.feverActive = false;
     }
 
-    if (this.nextParcelDelay > 0) {
-      this.nextParcelDelay = Math.max(0, this.nextParcelDelay - deltaTime);
-      if (this.nextParcelDelay === 0) this.prepareFrontParcel();
-    }
+    this.advanceParcels(deltaTime);
 
     if (this.charging) {
       this.charging.elapsed += deltaTime;
@@ -229,39 +240,40 @@ export class GameEngine {
       }
     }
 
-    for (const parcel of this.queue) {
-      if (parcel.expressRemaining !== null) {
-        parcel.expressRemaining = Math.max(0, parcel.expressRemaining - deltaTime);
+    const frontParcel = this.queue[0];
+    if (frontParcel && this.preparedParcelId === frontParcel.id && frontParcel.beltX >= BELT.launchX) {
+      if (frontParcel.expressRemaining !== null) {
+        frontParcel.expressRemaining = Math.max(0, frontParcel.expressRemaining - deltaTime);
       }
-    }
-
-    const expiredIds = this.queue
-      .filter((parcel) => parcel.expressRemaining === 0)
-      .map((parcel) => parcel.id);
-
-    for (const id of expiredIds) {
-      const index = this.queue.findIndex((parcel) => parcel.id === id);
-      if (index === 0) {
+      if (frontParcel.expressRemaining === 0) {
         this.removeFrontParcel('EXPIRED');
-      } else if (index > 0) {
-        const [parcel] = this.queue.splice(index, 1);
-        this.registerMiss();
-        this.emitResult('EXPIRED', parcel, parcel.targetIslandId, 0, this.zoneForParcel(parcel));
+      } else {
+        const waitDecay = this.charging ? deltaTime * 0.25 : deltaTime;
+        frontParcel.waitRemaining = Math.max(0, frontParcel.waitRemaining - waitDecay);
+        if (frontParcel.waitRemaining === 0) {
+          this.removeFrontParcel('DROPPED');
+        }
       }
     }
 
-    if (expiredIds.length > 0) {
-      this.updateQueuePositions();
-      this.fillQueue();
+    this.trySpawnParcel(deltaTime);
+    this.updateQueuePositions();
+  }
+
+  private advanceParcels(deltaTime: number): void {
+    const flowSpeed = this.currentBeltFlowSpeed();
+    for (let i = 0; i < this.queue.length; i += 1) {
+      const parcel = this.queue[i];
+      const limitX = i === 0 ? BELT.launchX : this.queue[i - 1].beltX - BELT.parcelSpacing;
+      if (parcel.beltX < limitX) {
+        parcel.beltX = Math.min(limitX, parcel.beltX + flowSpeed * deltaTime);
+      }
     }
 
     const frontParcel = this.queue[0];
-    if (frontParcel && this.nextParcelDelay === 0 && this.preparedParcelId === frontParcel.id) {
-      frontParcel.waitRemaining = Math.max(0, frontParcel.waitRemaining - deltaTime);
-      if (frontParcel.waitRemaining === 0) this.removeFrontParcel('DROPPED');
+    if (frontParcel && this.preparedParcelId !== frontParcel.id) {
+      this.prepareFrontParcel();
     }
-
-    this.fillQueue();
   }
 
   private updateAttractAi(deltaTime: number): void {
@@ -277,7 +289,7 @@ export class GameEngine {
     }
 
     const frontParcel = this.queue[0];
-    if (!frontParcel || this.nextParcelDelay > 0) return;
+    if (!frontParcel || !this.isFrontParcelReady() || frontParcel.beltX < BELT.launchX) return;
 
     if (!this.charging) {
       this.beginCharge(frontParcel.targetIslandId);
@@ -315,12 +327,7 @@ export class GameEngine {
 
   private beginCharge(id: number): void {
     const frontParcel = this.queue[0];
-    if (
-      this.charging
-      || this.nextParcelDelay > 0
-      || !frontParcel
-      || this.preparedParcelId !== frontParcel.id
-    ) return;
+    if (this.charging || !frontParcel || !this.isFrontParcelReady()) return;
     if (!this.stage.islandIds.some((islandId) => islandId === id)) return;
 
     this.selectedIslandId = id;
@@ -339,7 +346,7 @@ export class GameEngine {
   }
 
   private releaseCharge(id: number): void {
-    if (!this.charging || this.charging.islandId !== id || this.nextParcelDelay > 0) return;
+    if (!this.charging || this.charging.islandId !== id || !this.isFrontParcelReady()) return;
 
     const parcel = this.queue[0];
     if (!parcel) {
@@ -379,9 +386,8 @@ export class GameEngine {
     this.preparedParcelId = null;
     this.charging = null;
     this.attractShot = null;
-    this.nextParcelDelay = this.parcelEntryDelay();
-    this.fillQueue();
     this.updateQueuePositions();
+    this.prepareFrontParcel();
   }
 
   private removeFrontParcel(kind: Extract<ResultKind, 'DROPPED' | 'EXPIRED'>): void {
@@ -391,12 +397,11 @@ export class GameEngine {
     this.preparedParcelId = null;
     this.charging = null;
     this.attractShot = null;
-    this.nextParcelDelay = this.parcelEntryDelay();
     this.registerMiss();
     this.owlText = OWL_LINES.miss;
     this.emitResult(kind, parcel, parcel.targetIslandId, 0, this.zoneForParcel(parcel));
-    this.fillQueue();
     this.updateQueuePositions();
+    this.prepareFrontParcel();
   }
 
   private registerSuccess(kind: 'PERFECT' | 'GOOD', scoreAwarded: number): void {
@@ -461,21 +466,41 @@ export class GameEngine {
     }
   }
 
-  private fillQueue(): void {
-    while (this.queue.length < GAMEPLAY.queueSize) {
-      const targetIslandId = this.randomTargetIsland();
-      const type = this.randomParcelType();
-      this.queue.push({
-        id: this.nextParcelId,
-        type,
-        targetIslandId,
-        expressRemaining: type === 'EXPRESS' ? GAMEPLAY.expressDuration : null,
-        waitRemaining: this.speedStep.waitWindow,
-        queuePosition: this.queue.length,
-      });
-      this.nextParcelId += 1;
-    }
+  private seedInitialQueue(): void {
+    this.spawnParcel(BELT.initialX);
+    this.nextSpawnDelay = BELT.initialSpawnDelay;
     this.updateQueuePositions();
+  }
+
+  private trySpawnParcel(deltaTime: number): void {
+    if (this.queue.length >= BELT.maxQueueSize) return;
+    if (this.queue.length === 0) {
+      this.nextSpawnDelay = Math.min(this.nextSpawnDelay, BELT.emptySpawnDelay / this.speedStep.beltSpeed);
+    }
+    this.nextSpawnDelay = Math.max(0, this.nextSpawnDelay - deltaTime);
+    if (this.nextSpawnDelay > 0) return;
+
+    const tail = this.queue[this.queue.length - 1];
+    if (tail && tail.beltX < BELT.startX + BELT.parcelSpacing) return;
+
+    this.spawnParcel(BELT.startX);
+    this.nextSpawnDelay = this.randomSpawnDelay();
+    if (this.queue.length === 1) this.prepareFrontParcel();
+  }
+
+  private spawnParcel(beltX: number): void {
+    const targetIslandId = this.randomTargetIsland();
+    const type = this.randomParcelType();
+    this.queue.push({
+      id: this.nextParcelId,
+      type,
+      targetIslandId,
+      expressRemaining: type === 'EXPRESS' ? GAMEPLAY.expressDuration : null,
+      waitRemaining: this.speedStep.waitWindow,
+      queuePosition: this.queue.length,
+      beltX,
+    });
+    this.nextParcelId += 1;
   }
 
   private randomTargetIsland(): number {

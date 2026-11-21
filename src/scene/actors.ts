@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { PALETTE } from '../config/gameConfig';
+import { BELT, PALETTE } from '../config/gameConfig';
 import { ClayFactory } from './ClayFactory';
 
-export const LAUNCH_POSITION = new THREE.Vector3(2.9, 2.15, 4.8);
-export const BELT_START_X = -13.2;
-export const BELT_END_X = 3.65;
+export const LAUNCH_POSITION = new THREE.Vector3(BELT.launchX, 2.15, 4.8);
+export const BELT_START_X = BELT.startX;
+export const BELT_END_X = BELT.endX;
 
 export interface ConveyorVisual {
   root: THREE.Group;

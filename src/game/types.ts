@@ -27,6 +27,7 @@ export interface ParcelState {
   expressRemaining: number | null;
   waitRemaining: number;
   queuePosition: number;
+  beltX: number;
 }
 
 export interface PowerZone {
@@ -62,6 +63,7 @@ export interface GameSnapshot {
   speedStep: number;
   multiplier: number;
   beltSpeed: number;
+  beltFlowSpeed: number;
   frontParcel: ParcelState | null;
   parcelReady: boolean;
   queue: ParcelState[];

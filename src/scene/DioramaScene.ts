@@ -19,8 +19,6 @@ interface IslandRig {
 
 interface ParcelRig {
   visual: ParcelVisual;
-  target: THREE.Vector3;
-  entering: boolean;
 }
 
 type FlightEnd = 'PERFECT' | 'GOOD' | 'WRONG' | 'SHATTER' | 'POOF';
@@ -78,7 +76,6 @@ export class DioramaScene {
   private labelWidth = 1;
   private labelHeight = 1;
   private lastMode: GameMode | null = null;
-  private needsBeltSeed = true;
 
   constructor(private readonly container: HTMLElement, private readonly labelLayer: HTMLElement) {
     this.mobile = window.matchMedia('(pointer: coarse)').matches || Math.min(window.innerWidth, window.innerHeight) < 600;
@@ -194,11 +191,11 @@ export class DioramaScene {
     this.clouds.position.z = Math.cos(this.timeline * 0.025) * 0.8;
 
     this.beltPulse = Math.max(0, this.beltPulse - delta * 1.8);
-    this.beltOffset += delta * snapshot.beltSpeed * 2.8 * (1 + this.beltPulse * 0.65);
+    this.beltOffset += delta * snapshot.beltFlowSpeed * (1 + this.beltPulse * 0.65);
     this.beltOffset %= BELT_END_X - BELT_START_X;
     updateConveyor(this.conveyor, this.beltOffset);
 
-    this.syncParcels(delta, snapshot);
+    this.syncParcels(snapshot);
     this.updateFlights(delta);
     this.updateBounces(delta);
     this.updateCat(delta, snapshot);
@@ -233,7 +230,7 @@ export class DioramaScene {
       const visual = buildParcel(this.factory, event.parcel);
       visual.group.position.copy(LAUNCH_POSITION);
       this.scene.add(visual.group);
-      rig = { visual, target: LAUNCH_POSITION.clone(), entering: false };
+      rig = { visual };
     }
     this.parcels.delete(event.parcel.id);
     const visual = rig.visual;
@@ -348,7 +345,7 @@ export class DioramaScene {
     }
   }
 
-  private syncParcels(dt: number, snapshot: GameSnapshot): void {
+  private syncParcels(snapshot: GameSnapshot): void {
     const visible: ParcelState[] = [];
     if (snapshot.frontParcel) visible.push(snapshot.frontParcel);
     for (const parcel of snapshot.queue) {
@@ -362,12 +359,8 @@ export class DioramaScene {
       }
     }
 
-    const seedBelt = this.needsBeltSeed && visible.length > 0;
-    if (seedBelt) this.needsBeltSeed = false;
     for (const parcel of visible) {
       const isFront = parcel.id === snapshot.frontParcel?.id;
-      const queuePosition = isFront ? 0 : Math.max(1, parcel.queuePosition);
-      const targetX = LAUNCH_POSITION.x - queuePosition * 1.58;
       let rig = this.parcels.get(parcel.id);
 
       if (rig && rig.visual.type !== parcel.type) {
@@ -383,30 +376,25 @@ export class DioramaScene {
 
       if (!rig) {
         const visual = buildParcel(this.factory, parcel);
-        visual.group.position.set(seedBelt ? targetX : BELT_START_X, LAUNCH_POSITION.y, LAUNCH_POSITION.z);
+        visual.group.position.set(parcel.beltX, LAUNCH_POSITION.y, LAUNCH_POSITION.z);
         this.scene.add(visual.group);
-        rig = { visual, target: new THREE.Vector3(), entering: !seedBelt };
+        rig = { visual };
         this.parcels.set(parcel.id, rig);
       }
 
-      rig.target.set(targetX, LAUNCH_POSITION.y, LAUNCH_POSITION.z);
-      const entrySpeed = (LAUNCH_POSITION.x - BELT_START_X) / GAMEPLAY.parcelEntryDuration;
-      const speed = (isFront && rig.entering ? entrySpeed : isFront ? 6 : rig.entering ? 3.2 : 5.4) * snapshot.beltSpeed;
-      const distance = rig.target.x - rig.visual.group.position.x;
-      const step = speed * dt;
-      if (Math.abs(distance) <= step) {
-        rig.visual.group.position.x = rig.target.x;
-        rig.entering = false;
-      } else {
-        rig.visual.group.position.x += Math.sign(distance) * step;
-      }
+      rig.visual.group.position.x = parcel.beltX;
       rig.visual.group.position.y = LAUNCH_POSITION.y + Math.sin(this.timeline * 2.2 + parcel.id) * 0.045;
-      rig.visual.group.position.z = rig.target.z;
+      rig.visual.group.position.z = LAUNCH_POSITION.z;
       rig.visual.group.rotation.y = Math.sin(this.timeline * 1.4 + parcel.id) * 0.075;
       rig.visual.group.rotation.z = Math.sin(this.timeline * 1.8 + parcel.id) * 0.025;
       const charging = snapshot.charging !== null && isFront;
       const pulse = Math.sin(this.timeline * 2.6 + parcel.id) * 0.018;
-      rig.visual.group.scale.set(1 + pulse + (charging ? 0.07 : 0), 1 + pulse - (charging ? 0.1 : 0), 1 + pulse + (charging ? 0.07 : 0));
+      const spawnScale = THREE.MathUtils.clamp((parcel.beltX - BELT_START_X) / 0.8 + 0.2, 0.2, 1);
+      rig.visual.group.scale.set(
+        (1 + pulse + (charging ? 0.07 : 0)) * spawnScale,
+        (1 + pulse - (charging ? 0.1 : 0)) * spawnScale,
+        (1 + pulse + (charging ? 0.07 : 0)) * spawnScale,
+      );
       updateParcelCountdown(rig.visual, parcel.expressRemaining);
     }
   }
@@ -526,9 +514,12 @@ export class DioramaScene {
     }
     const end = this.predictLanding(charging.islandId, this.timeline + GAMEPLAY.flightDuration, 'PERFECT');
     const arcHeight = 2.5 + charging.power * 3;
+    const origin = snapshot.frontParcel
+      ? (this.parcels.get(snapshot.frontParcel.id)?.visual.group.position ?? LAUNCH_POSITION)
+      : LAUNCH_POSITION;
     this.aimDots.forEach((dot, index) => {
       const progress = ((index + 1) / (this.aimDots.length + 1)) * 0.32;
-      dot.position.lerpVectors(LAUNCH_POSITION, end, progress);
+      dot.position.lerpVectors(origin, end, progress);
       dot.position.y += 4 * arcHeight * progress * (1 - progress);
       dot.scale.setScalar(0.75 + index * 0.055 + Math.sin(this.timeline * 7 + index) * 0.08);
       dot.visible = true;
@@ -579,7 +570,6 @@ export class DioramaScene {
     for (const flight of this.flights) this.scene.remove(flight.visual.group);
     for (const bounce of this.bounces) this.scene.remove(bounce.visual.group);
     this.parcels.clear();
-    this.needsBeltSeed = true;
     this.flights.length = 0;
     this.bounces.length = 0;
     this.particles.clear();

@@ -214,7 +214,8 @@ export class DioramaScene {
   update(dt: number, snapshot: GameSnapshot): void {
     const delta = THREE.MathUtils.clamp(Number.isFinite(dt) ? dt : 0, 0, 0.5);
     if (this.lastMode !== snapshot.mode) {
-      if (this.lastMode !== null && snapshot.mode !== 'ended') this.resetTransient();
+      const beginsFromBoundary = this.lastMode === 'title' || this.lastMode === 'ended';
+      if (this.lastMode !== null && (beginsFromBoundary || snapshot.mode === 'title')) this.resetTransient();
       this.lastMode = snapshot.mode;
     }
 

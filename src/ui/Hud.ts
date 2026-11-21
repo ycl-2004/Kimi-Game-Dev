@@ -1,4 +1,4 @@
-import { CHORDS, FEVER, GAMEPLAY, ISLANDS, SPEED_STEPS } from '../config/gameConfig';
+import { CHORDS, FEVER, GAMEPLAY, ISLANDS } from '../config/gameConfig';
 import type { GameSnapshot, ParcelState, ResultEvent } from '../game/types';
 import { icon, owlPortrait } from './icons';
 
@@ -51,12 +51,9 @@ export class Hud {
   private readonly chordButtons: HTMLButtonElement[];
   private readonly consoleGuidance: HTMLElement;
   private readonly resultToast: HTMLElement;
-  private readonly stepBanner: HTMLElement;
   private resultTimer = 0;
-  private stepTimer = 0;
   private lastMultiplier = 1;
   private lastOwlText = '';
-  private currentSpeedStep = 1;
   private soundEnabled = true;
   private soundButton!: HTMLButtonElement;
   private ticketSignature = '';
@@ -118,9 +115,6 @@ export class Hud {
 
       <button class="round-button hud-sound" type="button" aria-label="Mute sound" aria-pressed="true">${icon('sound')}</button>
       <div class="result-toast" role="status" aria-live="polite"></div>
-      <div class="step-banner" role="status" aria-live="polite">
-        <span>POSTAL NOTICE</span><strong>SPEED UP!</strong><small>BELT x1.2 · SCORE x1.5</small>
-      </div>
 
       <div class="console-wrap">
         <div class="console-label"><span class="console-guidance">INCOMING…</span></div>
@@ -166,7 +160,6 @@ export class Hud {
     this.chordButtons = Array.from(this.element.querySelectorAll<HTMLButtonElement>('.chord-bridge'));
     this.consoleGuidance = required(this.element, '.console-guidance');
     this.resultToast = required(this.element, '.result-toast');
-    this.stepBanner = required(this.element, '.step-banner');
     this.soundButton = required(this.element, '.hud-sound');
 
     this.feverButton.addEventListener('click', () => {
@@ -183,7 +176,6 @@ export class Hud {
   }
 
   update(snapshot: GameSnapshot): void {
-    this.currentSpeedStep = snapshot.speedStep;
     const remaining = Math.max(0, Math.ceil(snapshot.remaining));
     setText(this.timeValue, `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`);
     setText(this.scoreValue, Math.round(snapshot.score).toLocaleString('en-US'));
@@ -275,11 +267,6 @@ export class Hud {
     };
   }
 
-  showSpeedUp(label: string, step = this.currentSpeedStep): void {
-    this.showStepUp(step);
-    setText(required(this.stepBanner, 'strong'), label);
-  }
-
   private applySound(enabled: boolean): void {
     this.soundEnabled = enabled;
     this.soundButton.innerHTML = icon(enabled ? 'sound' : 'muted');
@@ -298,19 +285,6 @@ export class Hud {
     this.resultTimer = window.setTimeout(() => {
       this.resultToast.classList.remove('is-visible', 'is-animating');
     }, 1150);
-  }
-
-  showStepUp(step: number | { step: number }): void {
-    window.clearTimeout(this.stepTimer);
-    const stepNumber = typeof step === 'number' ? step : step.step;
-    const details = SPEED_STEPS.find((item) => item.step === stepNumber) ?? SPEED_STEPS[0];
-    setText(required(this.stepBanner, 'strong'), details.label);
-    setText(required(this.stepBanner, 'small'), `BELT x${details.beltSpeed} · SCORE x${details.multiplier}`);
-    this.stepBanner.dataset.step = String(stepNumber);
-    this.stepBanner.classList.remove('is-visible');
-    void this.stepBanner.offsetWidth;
-    this.stepBanner.classList.add('is-visible');
-    this.stepTimer = window.setTimeout(() => this.stepBanner.classList.remove('is-visible'), 2200);
   }
 
   private updateTicket(snapshot: GameSnapshot): void {

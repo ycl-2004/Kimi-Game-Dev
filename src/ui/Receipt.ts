@@ -1,6 +1,6 @@
-import { GRADES, RUN_LENGTH } from '../config/gameConfig';
-import type { LeaderboardEntry, ReviewResult, RunStats } from '../game/types';
-import { getLeaderboard, saveScore } from '../services/leaderboard';
+import { GRADES, LEVELS } from '../config/gameConfig';
+import type { LeaderboardEntry, LevelId, ReviewResult, RunResult } from '../game/types';
+import { getLeaderboard, getLevelBest, saveLevelBest, saveScore } from '../services/leaderboard';
 import { getReview } from '../services/review';
 import { icon, owlPortrait } from './icons';
 import { renderLeaderboard } from './Leaderboard';
@@ -24,16 +24,21 @@ function required<T extends Element>(root: ParentNode, selector: string): T {
 export class Receipt {
   readonly element: HTMLElement;
   onPlayAgain: () => void = () => undefined;
+  onSelectLevel: (levelId: LevelId) => void = () => undefined;
+  onEndShift: () => void = () => undefined;
 
   private readonly card: HTMLElement;
   private readonly paper: HTMLElement;
   private readonly nameInput: HTMLInputElement;
   private readonly saveButton: HTMLButtonElement;
+  private readonly scoreSave: HTMLElement;
+  private readonly leaderboard: HTMLElement;
+  private readonly practiceBest: HTMLElement;
   private readonly reviewTitle: HTMLElement;
   private readonly reviewText: HTMLElement;
   private readonly leaderboardList: HTMLElement;
   private readonly rankNote: HTMLElement;
-  private currentStats: RunStats | null = null;
+  private currentResult: RunResult | null = null;
   private currentGrade = 'C';
   private savedEntry: LeaderboardEntry | null = null;
   private reviewRequest = 0;
@@ -52,8 +57,8 @@ export class Receipt {
             <header class="receipt-header">
               <span>SPECIAL DELIVERY DIVISION</span>
               <h2>CLOUD POST!</h2>
-              <p>POSTAL INSPECTION RECEIPT</p>
-              <div class="receipt-meta"><span>SHIFT 01</span><span>${RUN_LENGTH} SECOND SERVICE</span></div>
+              <p class="receipt-kind">POSTAL INSPECTION RECEIPT</p>
+              <div class="receipt-meta"><span class="receipt-shift">SHIFT 01</span><span class="receipt-duration"></span></div>
             </header>
             <div class="receipt-scoreline">
               <div><span>FINAL SCORE</span><strong class="receipt-score">0</strong></div>
@@ -80,13 +85,27 @@ export class Receipt {
                 <input id="postal-name" type="text" maxlength="16" autocomplete="nickname" spellcheck="false" placeholder="CAT" aria-label="Your postal name" />
                 <button class="save-score-button" type="button">${icon('check')}<span>SAVE SCORE</span></button>
               </div>
-              <p class="rank-note">Save your shift to the local top ten.</p>
+              <p class="rank-note">Save your full shift to the local top ten.</p>
             </div>
             <section class="receipt-leaderboard">
-              <div class="receipt-section-title"><span>LOCAL LEADERBOARD</span>${icon('trophy')}</div>
+              <div class="receipt-section-title"><span>FULL SHIFT LEADERBOARD</span>${icon('trophy')}</div>
               <div class="receipt-leaderboard-list"></div>
             </section>
-            <button class="play-again-button primary-button" type="button"><span>PLAY AGAIN</span>${icon('arrow')}</button>
+            <section class="practice-best" hidden>
+              <div class="receipt-section-title"><span class="practice-best-label">LOCAL BEST</span>${icon('trophy')}</div>
+              <div class="practice-best-score"><strong class="practice-best-value">0</strong><span>THIS DEVICE ONLY</span></div>
+              <p class="practice-best-note"></p>
+            </section>
+            <div class="receipt-choices">
+              <button class="play-again-button primary-button" type="button"><span>REPLAY FULL SHIFT</span>${icon('arrow')}</button>
+              <div class="level-choices" aria-label="Practice a single level">
+                ${LEVELS.map((level) => `
+                  <button class="level-choice level-choice-${level.id}" data-level="${level.id}" type="button">
+                    <span>${level.name.toUpperCase()}</span><small>${level.duration}s · ×${level.multiplier}</small>
+                  </button>`).join('')}
+              </div>
+              <button class="end-shift-button" type="button"><span>END SHIFT</span>${icon('close')}</button>
+            </div>
           </div>
           <p class="receipt-footer">THANK YOU FOR FLYING CLOUD POST <span>✦</span> KEEP YOUR WHISKERS DRY</p>
         </div>
@@ -97,25 +116,41 @@ export class Receipt {
     this.paper = required(this.element, '.receipt-paper');
     this.nameInput = required(this.element, '#postal-name');
     this.saveButton = required(this.element, '.save-score-button');
+    this.scoreSave = required(this.element, '.score-save');
+    this.leaderboard = required(this.element, '.receipt-leaderboard');
+    this.practiceBest = required(this.element, '.practice-best');
     this.reviewTitle = required(this.element, '.review-title');
     this.reviewText = required(this.element, '.review-text');
     this.leaderboardList = required(this.element, '.receipt-leaderboard-list');
     this.rankNote = required(this.element, '.rank-note');
     this.nameInput.value = readSavedName();
 
+    this.element.querySelectorAll<HTMLButtonElement>('[data-level]').forEach((button) => {
+      const levelId = button.dataset.level as LevelId;
+      const level = LEVELS.find((candidate) => candidate.id === levelId);
+      button.addEventListener('click', () => {
+        if (level) this.selectLevel(level.id);
+      });
+    });
+
     this.saveButton.addEventListener('click', () => this.save());
     required<HTMLButtonElement>(this.element, '.play-again-button').addEventListener('click', () => this.playAgain());
+    required<HTMLButtonElement>(this.element, '.end-shift-button').addEventListener('click', () => this.endShift());
     window.addEventListener('keydown', this.handleKeyDown);
   }
 
-  show(stats: RunStats): void {
-    this.currentStats = { ...stats };
-    this.currentGrade = this.gradeFor(stats.score);
+  show(result: RunResult): void {
+    const stats = result.stats;
+    const isFullRun = result.runKind === 'full';
+    const level = LEVELS.find((candidate) => candidate.id === result.levelId);
+    this.currentResult = { ...result, stats: { ...stats } };
+    this.currentGrade = this.gradeFor(stats.score, result.scoringDuration);
     this.savedEntry = null;
     this.visible = true;
     this.reviewRequest += 1;
     const request = this.reviewRequest;
 
+    this.element.dataset.runKind = result.runKind;
     this.element.classList.remove('is-hidden');
     this.element.setAttribute('aria-hidden', 'false');
     this.paper.scrollTop = 0;
@@ -123,6 +158,13 @@ export class Receipt {
     void this.card.offsetWidth;
     this.card.classList.add('is-printing');
 
+    required(this.element, '.receipt-kind').textContent = isFullRun
+      ? 'POSTAL INSPECTION RECEIPT'
+      : `${level?.name.toUpperCase() ?? 'LEVEL'} PRACTICE RECEIPT`;
+    required(this.element, '.receipt-shift').textContent = isFullRun
+      ? 'FULL SHIFT 01'
+      : `${level?.name.toUpperCase() ?? 'LEVEL'} PRACTICE`;
+    required(this.element, '.receipt-duration').textContent = `${Math.round(result.totalDuration)}s SHIFT · ${Math.round(result.scoringDuration)}s SCORED`;
     required(this.element, '.receipt-score').textContent = stats.score.toLocaleString('en-US');
     required(this.element, '.grade-value').textContent = this.currentGrade;
     required(this.element, '.grade-stamp').setAttribute('data-grade', this.currentGrade.replace('+', 'plus'));
@@ -130,14 +172,22 @@ export class Receipt {
       required(this.element, `[data-stat="${key}"]`).textContent = String(stats[key]);
     });
 
-    this.nameInput.readOnly = false;
-    this.saveButton.disabled = false;
+    this.scoreSave.hidden = !isFullRun;
+    this.leaderboard.hidden = !isFullRun;
+    this.practiceBest.hidden = isFullRun;
+    this.nameInput.readOnly = !isFullRun;
+    this.saveButton.disabled = !isFullRun;
     this.saveButton.innerHTML = `${icon('check')}<span>SAVE SCORE</span>`;
-    this.rankNote.textContent = 'Save your shift to the local top ten.';
+    this.rankNote.textContent = 'Save your full shift to the local top ten.';
     this.reviewTitle.textContent = 'INSPECTING YOUR SHIFT…';
     this.reviewText.textContent = 'The owl is checking every stamp.';
     this.reviewBoxLoading(true);
-    renderLeaderboard(this.leaderboardList, getLeaderboard(), undefined, 5);
+
+    if (isFullRun) {
+      renderLeaderboard(this.leaderboardList, getLeaderboard(), undefined, 5);
+    } else {
+      this.showPracticeBest(result.levelId ?? null, level?.name ?? 'LEVEL', stats.score);
+    }
 
     getReview({ ...stats, name: this.postalName(), grade: this.currentGrade })
       .then((review) => this.applyReview(review, request))
@@ -154,8 +204,8 @@ export class Receipt {
     this.element.setAttribute('aria-hidden', 'true');
   }
 
-  private gradeFor(score: number): string {
-    const scale = RUN_LENGTH / 60;
+  private gradeFor(score: number, scoringDuration: number): string {
+    const scale = Math.max(0, scoringDuration) / 60;
     return GRADES.find((grade) => score >= grade.minimum * scale)?.grade ?? 'C';
   }
 
@@ -163,8 +213,18 @@ export class Receipt {
     return this.nameInput.value.trim().replace(/\s+/g, ' ').slice(0, 16) || 'CAT';
   }
 
+  private showPracticeBest(levelId: LevelId | null, levelName: string, score: number): void {
+    const previousBest = levelId ? getLevelBest(levelId) : 0;
+    const best = levelId ? saveLevelBest(levelId, score) : score;
+    required(this.element, '.practice-best-label').textContent = `${levelName.toUpperCase()} LOCAL BEST`;
+    required(this.element, '.practice-best-value').textContent = best.toLocaleString('en-US');
+    required(this.element, '.practice-best-note').textContent = score > previousBest
+      ? previousBest > 0 ? `New best! Previous: ${previousBest.toLocaleString('en-US')}.` : 'First practice score stamped on this device.'
+      : 'Practice scores stay separate from the full-shift leaderboard.';
+  }
+
   private save(): void {
-    if (!this.currentStats || this.savedEntry) return;
+    if (!this.currentResult || this.currentResult.runKind !== 'full' || this.savedEntry) return;
     const name = this.postalName();
     this.nameInput.value = name;
     try {
@@ -172,7 +232,7 @@ export class Receipt {
     } catch {
     }
 
-    const result = saveScore(name, this.currentStats.score, this.currentGrade);
+    const result = saveScore(name, this.currentResult.stats.score, this.currentGrade);
     this.savedEntry = result.entry;
     this.nameInput.readOnly = true;
     this.saveButton.disabled = true;
@@ -196,6 +256,16 @@ export class Receipt {
   private playAgain(): void {
     this.hide();
     this.onPlayAgain();
+  }
+
+  private selectLevel(levelId: LevelId): void {
+    this.hide();
+    this.onSelectLevel(levelId);
+  }
+
+  private endShift(): void {
+    this.hide();
+    this.onEndShift();
   }
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {

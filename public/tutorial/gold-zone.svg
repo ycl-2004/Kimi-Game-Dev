@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420" role="img" aria-labelledby="title desc">
+  <title id="title">Aim for the gold zone</title>
+  <desc id="desc">The moving power needle lines up with a small golden bullseye.</desc>
+  <defs>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="8" stdDeviation="0" flood-color="#2B211E" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+  <rect width="720" height="420" rx="30" fill="#FFF6E9"/>
+  <circle cx="581" cy="82" r="49" fill="#FFD166"/>
+  <g fill="#DDF1FF" stroke="#2B211E" stroke-width="4">
+    <path d="M40 103c4-25 42-31 56-11 21-20 59-2 52 24H40c-7-3-7-10 0-13Z"/>
+    <path d="M461 323c5-27 46-34 62-12 23-22 65-2 57 26H461c-8-3-8-11 0-14Z"/>
+  </g>
+  <g transform="translate(92 38)" filter="url(#shadow)">
+    <rect x="0" y="0" width="184" height="330" rx="40" fill="#DDF1FF" stroke="#2B211E" stroke-width="6"/>
+    <rect x="53" y="26" width="78" height="278" rx="24" fill="#E8B88A" stroke="#2B211E" stroke-width="5"/>
+    <path d="M58 176h68v82H58Z" fill="#4CC9A0"/>
+    <path d="M58 193h68v46H58Z" fill="#FFD166"/>
+    <path d="M45 216h94" stroke="#2B211E" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="140" cy="216" r="15" fill="#FFF6E9" stroke="#2B211E" stroke-width="5"/>
+    <path d="M92 177v-28m-13 13 13-13 13 13m-13 96v28m-13-13 13 13 13-13" fill="none" stroke="#FF6B4A" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g transform="translate(385 93)">
+    <path d="M116 0 142 57l62 6-47 40 14 61-55-32-55 32 14-61-47-40 62-6Z" fill="#FFD166" stroke="#2B211E" stroke-width="6" stroke-linejoin="round" filter="url(#shadow)"/>
+    <circle cx="116" cy="91" r="48" fill="#FFF6E9" stroke="#2B211E" stroke-width="5"/>
+    <circle cx="116" cy="91" r="29" fill="#FF6B4A" stroke="#2B211E" stroke-width="4"/>
+    <circle cx="116" cy="91" r="10" fill="#FFF6E9"/>
+    <path d="M0 91h67m98 0h68" stroke="#2B211E" stroke-width="5" stroke-linecap="round" stroke-dasharray="8 12"/>
+  </g>
+  <path d="M280 216c39 0 61-2 102-1" fill="none" stroke="#FF6B4A" stroke-width="6" stroke-linecap="round"/>
+  <path d="m365 202 19 14-19 14" fill="none" stroke="#FF6B4A" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="48" y="389" fill="#2B211E" font-family="sans-serif" font-size="18" font-weight="700" letter-spacing="3">WATCH THE NEEDLE</text>
+  <text x="674" y="389" text-anchor="end" fill="#2B211E" font-family="monospace" font-size="16" font-weight="700">GOLD = BULLSEYE</text>
+</svg>

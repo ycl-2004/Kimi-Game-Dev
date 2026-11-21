@@ -1,11 +1,17 @@
 import { LEADERBOARD } from '../config/gameConfig';
-import type { LeaderboardEntry } from '../game/types';
+import type { LeaderboardEntry, LevelId } from '../game/types';
 
 export interface LeaderboardSaveResult {
   entries: LeaderboardEntry[];
   entry: LeaderboardEntry;
   newId: string;
 }
+
+const LEVEL_BEST_STORAGE_KEYS: Record<LevelId, string> = {
+  slow: 'cloud-post-best-slow-v1',
+  normal: 'cloud-post-best-normal-v1',
+  sunset: 'cloud-post-best-sunset-v1',
+};
 
 const PRESET_ENTRIES: readonly LeaderboardEntry[] = [
   { id: 'preset-mochi', name: 'Mochi Express', score: 4200, grade: 'S', createdAt: Date.UTC(2026, 0, 5) },
@@ -75,6 +81,28 @@ function createId(): string {
     // A timestamp fallback also works in restricted browser contexts.
   }
   return `post-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export function getLevelBest(levelId: LevelId): number {
+  if (typeof window === 'undefined') return 0;
+  try {
+    const value = Number(window.localStorage.getItem(LEVEL_BEST_STORAGE_KEYS[levelId]));
+    return Number.isFinite(value) && value > 0 ? Math.round(value) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function saveLevelBest(levelId: LevelId, score: number): number {
+  const cleanScore = Number.isFinite(score) ? Math.max(0, Math.round(score)) : 0;
+  const best = Math.max(getLevelBest(levelId), cleanScore);
+  if (typeof window === 'undefined' || best === 0) return best;
+  try {
+    window.localStorage.setItem(LEVEL_BEST_STORAGE_KEYS[levelId], String(best));
+  } catch {
+    return best;
+  }
+  return best;
 }
 
 export function getLeaderboard(): LeaderboardEntry[] {

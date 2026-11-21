@@ -1,3 +1,10 @@
+import type {
+  LevelDefinition,
+  LevelId,
+  TransitionDefinition,
+  TutorialDefinition,
+} from '../game/types';
+
 export const PALETTE = {
   paper: '#FFF6E9',
   sky: '#DDF1FF',
@@ -27,11 +34,113 @@ export const ISLANDS = [
   { id: 4, name: 'Star Observatory', short: 'STARS', color: PALETTE.lavender, icon: 'observatory', inputs: ['2', '3'], baseDistance: 0.60, driftAmp: 0.16, driftPeriod: 7.5, driftPhase: 3.3, x: 4.5, stage2X: 6, elevation: 0.85 },
 ] as const;
 
-const DAY_STAGE = { id: 'day', start: 0, end: 30, islandIds: [0, 1, 2], driftScale: 1, allowChords: false } as const;
-const SUNSET_STAGE = { id: 'sunset', start: 30, end: 60, islandIds: [0, 3, 1, 4, 2], driftScale: 1.3, allowChords: true } as const;
+export const TUTORIAL = {
+  duration: 5,
+  cards: [
+    {
+      image: '/tutorial/hold.svg',
+      title: 'HOLD TO CHARGE',
+      description: 'Hold the button that matches the parcel’s island.',
+    },
+    {
+      image: '/tutorial/gold-zone.svg',
+      title: 'WATCH THE GOLD',
+      description: 'The moving gold zone shows the right throwing power.',
+    },
+    {
+      image: '/tutorial/release.svg',
+      title: 'RELEASE TO DELIVER',
+      description: 'Let go inside the gold for a perfect delivery.',
+    },
+  ],
+} as const satisfies TutorialDefinition;
 
-export const STAGES = FEATURES.stage2 ? [DAY_STAGE, SUNSET_STAGE] : [DAY_STAGE];
-export const STAGE_TRANSITION_DURATION = 2;
+export const SPEED_TRANSITION = {
+  kind: 'speed',
+  duration: 4,
+  title: 'SPEED UP!',
+  description: 'The belt is picking up speed. Fragile and express parcels are joining the route.',
+  nextLevelId: 'normal',
+} as const satisfies TransitionDefinition;
+
+export const CHORD_TRANSITION = {
+  kind: 'chords',
+  duration: 4,
+  title: 'CHORD SHIFT!',
+  description: 'Five islands ahead. Hold both buttons together for chord deliveries.',
+  nextLevelId: 'sunset',
+} as const satisfies TransitionDefinition;
+
+export const LEVEL_DEFINITIONS: Record<LevelId, LevelDefinition> = {
+  slow: {
+    id: 'slow',
+    name: 'Slow',
+    sceneId: 'day',
+    duration: 20,
+    beltSpeed: 0.5,
+    waitWindow: 7,
+    multiplier: 1,
+    needleStep: 1,
+    islandIds: [0, 1, 2],
+    driftScale: 1,
+    allowChords: false,
+    parcelMix: { NORMAL: 1, FRAGILE: 0, EXPRESS: 0 },
+    scriptedFirsts: [],
+  },
+  normal: {
+    id: 'normal',
+    name: 'Normal',
+    sceneId: 'day',
+    duration: 25,
+    beltSpeed: 1,
+    waitWindow: 6,
+    multiplier: 1.5,
+    needleStep: 2,
+    islandIds: [0, 1, 2],
+    driftScale: 1,
+    allowChords: false,
+    parcelMix: { NORMAL: 0.5, FRAGILE: 0.3, EXPRESS: 0.2 },
+    scriptedFirsts: [
+      { at: 8, parcelType: 'FRAGILE', targetIslandIds: [] },
+      { at: 16, parcelType: 'EXPRESS', targetIslandIds: [] },
+    ],
+    transition: SPEED_TRANSITION,
+  },
+  sunset: {
+    id: 'sunset',
+    name: 'Sunset',
+    sceneId: 'sunset',
+    duration: 30,
+    beltSpeed: 1.3,
+    waitWindow: 5,
+    multiplier: 2,
+    needleStep: 3,
+    islandIds: [0, 3, 1, 4, 2],
+    driftScale: 1.3,
+    allowChords: true,
+    parcelMix: { NORMAL: 0.35, FRAGILE: 0.35, EXPRESS: 0.3 },
+    scriptedFirsts: [
+      { at: 0, parcelType: 'NORMAL', targetIslandIds: [3, 4] },
+    ],
+    transition: CHORD_TRANSITION,
+    practiceTransition: CHORD_TRANSITION,
+  },
+};
+
+export const FULL_RUN_LEVEL_IDS = ['slow', 'normal', 'sunset'] as const satisfies readonly LevelId[];
+
+export const LEVELS: readonly LevelDefinition[] = FULL_RUN_LEVEL_IDS.map((levelId) => LEVEL_DEFINITIONS[levelId]);
+
+export const TOTAL_SCORING_DURATION = FULL_RUN_LEVEL_IDS.reduce(
+  (total, levelId) => total + LEVEL_DEFINITIONS[levelId].duration,
+  0,
+);
+
+export const FULL_RUN_TOTAL_DURATION = TUTORIAL.duration + TOTAL_SCORING_DURATION + FULL_RUN_LEVEL_IDS.reduce(
+  (total, levelId) => total + (LEVEL_DEFINITIONS[levelId].transition?.duration ?? 0),
+  0,
+);
+
 export const CHORDS = {
   retargetWindowMs: 150,
   randomTargetChance: 0.4,
@@ -39,26 +148,11 @@ export const CHORDS = {
   waitWindowBonus: 1.5,
 } as const;
 
-export const RUN_LENGTH = STAGES[STAGES.length - 1].end;
-
-export const SPEED_STEPS = [
-  { step: 1, start: 0, end: 15, beltSpeed: 1, waitWindow: 7, multiplier: 1, label: 'SPEED UP!', mix: { NORMAL: 1, FRAGILE: 0, EXPRESS: 0 } },
-  { step: 2, start: 15, end: 30, beltSpeed: 1.15, waitWindow: 6, multiplier: 1.5, label: 'SPEED UP!', mix: { NORMAL: 0.5, FRAGILE: 0.3, EXPRESS: 0.2 } },
-  { step: 3, start: 30, end: 45, beltSpeed: 1.35, waitWindow: 5, multiplier: 2, label: 'SPEED UP!', mix: { NORMAL: 0.35, FRAGILE: 0.35, EXPRESS: 0.3 } },
-  { step: 4, start: 45, end: 60, beltSpeed: 1.55, waitWindow: 4.2, multiplier: 2.5, label: 'RUSH HOUR!', mix: { NORMAL: 0.2, FRAGILE: 0.4, EXPRESS: 0.4 } },
-] as const;
-
 export const PARCEL_TYPES = {
   NORMAL: { goodScore: 100, perfectScore: 150, greenHalfWidth: 0.17, goldHalfWidth: 0.065, needleSpeed: 0.75 },
   FRAGILE: { goodScore: 130, perfectScore: 200, greenHalfWidth: 0.11, goldHalfWidth: 0.035, needleSpeed: 0.75 },
   EXPRESS: { goodScore: 200, perfectScore: 250, greenHalfWidth: 0.17, goldHalfWidth: 0.065, needleSpeed: 1.2 },
 } as const;
-
-export const SCRIPTED_FIRSTS = [
-  { at: 10, parcelType: 'FRAGILE', targetIslandIds: [] },
-  { at: 20, parcelType: 'EXPRESS', targetIslandIds: [] },
-  { at: 32, parcelType: 'NORMAL', targetIslandIds: [3, 4] },
-] as const;
 
 export const POWER = {
   baseSweepSpeed: 0.75,
@@ -121,4 +215,4 @@ export const OWL_LINES = {
 
 export const REVIEW = { timeoutMs: 2500 };
 export const LEADERBOARD = { storageKey: 'cloud-post-local-v1', maxEntries: 10 };
-export const ONBOARDING_LINE = "Hold the island's button. Release when the needle is in the gold!";
+export const ONBOARDING_LINE = 'Parcels roll in. Hold the matching island button, then release inside the moving gold zone!';

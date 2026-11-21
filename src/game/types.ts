@@ -1,7 +1,11 @@
 import type { ISLANDS, PARCEL_TYPES } from '../config/gameConfig';
 
 export type ParcelType = keyof typeof PARCEL_TYPES;
-export type GameMode = 'title' | 'playing' | 'ended';
+export type LevelId = 'slow' | 'normal' | 'sunset';
+export type SceneId = 'day' | 'sunset';
+export type RunKind = 'full' | 'practice';
+export type GameMode = 'title' | 'tutorial' | 'playing' | 'transition' | 'ended';
+export type TransitionKind = 'speed' | 'chords';
 export type ResultKind = 'PERFECT' | 'GOOD' | 'TOO WEAK' | 'TOO STRONG' | 'WRONG ISLAND' | 'DROPPED' | 'EXPIRED';
 
 export interface IslandDefinition {
@@ -21,6 +25,55 @@ export interface IslandDefinition {
 }
 
 export type IslandId = (typeof ISLANDS)[number]['id'];
+
+export interface ScriptedParcelFirst {
+  at: number;
+  parcelType: ParcelType;
+  targetIslandIds: readonly number[];
+}
+
+export interface TransitionDefinition {
+  kind: TransitionKind;
+  duration: number;
+  title: string;
+  description: string;
+  nextLevelId: LevelId;
+}
+
+export interface LevelDefinition {
+  id: LevelId;
+  name: string;
+  sceneId: SceneId;
+  duration: number;
+  beltSpeed: number;
+  waitWindow: number;
+  multiplier: number;
+  needleStep: number;
+  islandIds: readonly number[];
+  driftScale: number;
+  allowChords: boolean;
+  parcelMix: Readonly<Record<ParcelType, number>>;
+  scriptedFirsts: readonly ScriptedParcelFirst[];
+  transition?: TransitionDefinition;
+  practiceTransition?: TransitionDefinition;
+}
+
+export interface TutorialCard {
+  image: string;
+  title: string;
+  description: string;
+}
+
+export interface TutorialDefinition {
+  duration: number;
+  cards: readonly TutorialCard[];
+}
+
+export interface TutorialSnapshot {
+  elapsed: number;
+  duration: number;
+  cardIndex: number;
+}
 
 export interface ParcelState {
   id: number;
@@ -54,16 +107,27 @@ export interface RunStats {
   feverUsed: number;
 }
 
-export interface StageTransitionSnapshot {
+export interface RunResult {
+  stats: RunStats;
+  runKind: RunKind;
+  levelId?: LevelId;
+  scoringDuration: number;
+  totalDuration: number;
+}
+
+export interface StageTransitionSnapshot extends TransitionDefinition {
   elapsed: number;
-  duration: number;
 }
 
 export interface GameSnapshot {
   mode: GameMode;
-  stageId: string;
+  levelId: LevelId;
+  runKind: RunKind;
+  tutorial: TutorialSnapshot | null;
+  stageId: SceneId;
   activeIslandIds: number[];
   allowChords: boolean;
+  driftScale: number;
   stageTransition: StageTransitionSnapshot | null;
   runTime: number;
   runLength: number;

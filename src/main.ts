@@ -1,14 +1,15 @@
 import './styles.css';
 import { SoundManager } from './audio/SoundManager';
-import { FEATURES, SPEED_STEPS } from './config/gameConfig';
 import { GameEngine } from './game/GameEngine';
 import { InputController } from './game/InputController';
-import type { ResultEvent } from './game/types';
+import type { LevelId, ResultEvent } from './game/types';
 import { DioramaScene } from './scene/DioramaScene';
+import { FlowTransition } from './ui/FlowTransition';
 import { Hud } from './ui/Hud';
 import { Leaderboard } from './ui/Leaderboard';
 import { Receipt } from './ui/Receipt';
 import { TitleScreen } from './ui/TitleScreen';
+import { Tutorial } from './ui/Tutorial';
 
 const appRoot = document.querySelector<HTMLDivElement>('#app');
 if (!appRoot) throw new Error('Missing #app root');
@@ -44,8 +45,10 @@ const title = new TitleScreen();
 const hud = new Hud();
 const receipt = new Receipt();
 const leaderboard = new Leaderboard();
+const tutorial = new Tutorial();
+const flowTransition = new FlowTransition();
 
-app.append(title.element, hud.element, receipt.element, leaderboard.element);
+app.append(title.element, hud.element, receipt.element, leaderboard.element, tutorial.element, flowTransition.element);
 
 let muted = false;
 let leaderboardOpen = false;
@@ -57,10 +60,7 @@ function syncSoundButtons(): void {
   hud.setMuted(muted);
 }
 
-function startRun(): void {
-  const mode = engine.getSnapshot().mode;
-  if (mode === 'playing') return;
-
+function prepareRun(): void {
   app.classList.add('is-playing');
   requestAnimationFrame(() => scene.resize());
   void sound.unlock();
@@ -68,15 +68,53 @@ function startRun(): void {
   leaderboard.hide();
   title.hide();
   receipt.hide();
-  hud.show();
+  tutorial.hide();
+  flowTransition.hide();
+  hud.hide();
   wasCharging = false;
   wasFeverActive = false;
   sound.stopCharge();
   sound.setSpeedStep(1);
   input.reset();
-  engine.start();
   sound.startBgm();
   sound.playVoice('start');
+}
+
+function startRun(): void {
+  const mode = engine.getSnapshot().mode;
+  if (mode !== 'title' && mode !== 'ended') return;
+  prepareRun();
+  engine.start();
+}
+
+function replayFullRun(): void {
+  if (engine.getSnapshot().mode !== 'ended') return;
+  prepareRun();
+  engine.startFullRun();
+}
+
+function startPractice(levelId: LevelId): void {
+  if (engine.getSnapshot().mode !== 'ended') return;
+  prepareRun();
+  engine.startPractice(levelId);
+}
+
+function returnToTitle(): void {
+  app.classList.remove('is-playing');
+  input.reset();
+  sound.stopCharge();
+  sound.stopBgm();
+  wasCharging = false;
+  wasFeverActive = false;
+  tutorial.hide();
+  flowTransition.hide();
+  hud.hide();
+  receipt.hide();
+  leaderboardOpen = false;
+  leaderboard.hide();
+  engine.returnToTitle();
+  title.show();
+  requestAnimationFrame(() => scene.resize());
 }
 
 function confirm(): void {
@@ -111,7 +149,10 @@ title.onToggleSound = toggleSound;
 title.onLeaderboard = showLeaderboard;
 hud.onFever = activateFever;
 hud.onToggleSound = toggleSound;
-receipt.onPlayAgain = startRun;
+receipt.onPlayAgain = replayFullRun;
+receipt.onSelectLevel = startPractice;
+receipt.onEndShift = returnToTitle;
+tutorial.onSkip = () => engine.skipTutorial();
 leaderboard.onClose = hideLeaderboard;
 
 const input = new InputController({
@@ -164,14 +205,25 @@ engine.onResult = (result) => {
   if (result.kind !== 'PERFECT' && result.kind !== 'GOOD') sound.playVoice('miss');
 };
 
-engine.onStepUp = (step) => {
-  scene.handleStepUp(step);
-  if (engine.getSnapshot().mode !== 'playing') return;
-  const speedStep = SPEED_STEPS[step - 1];
-  hud.showSpeedUp(step === 3 && FEATURES.stage2 ? 'STAGE 2 • SUNSET SHIFT' : speedStep.label, step);
-  sound.setSpeedStep(step);
+engine.onTutorialStart = () => {
+  hud.hide();
+  flowTransition.hide();
+  tutorial.show();
+};
+
+engine.onLevelStart = (level) => {
+  tutorial.hide();
+  flowTransition.hide();
+  hud.show();
+  scene.handleStepUp(level.needleStep);
+  sound.setSpeedStep(level.needleStep);
+};
+
+engine.onTransitionStart = (transition) => {
+  tutorial.hide();
+  flowTransition.show(transition);
   sound.play('speedup');
-  sound.playVoice(step === 4 ? 'rush' : 'speedup');
+  sound.playVoice(transition.kind === 'chords' ? 'chord_hint' : 'speedup');
 };
 
 engine.onStageTransitionStart = () => {
@@ -194,7 +246,7 @@ engine.onFeverReady = () => {
   if (engine.getSnapshot().mode === 'playing') sound.playVoice('feverReady');
 };
 
-engine.onEnd = (stats) => {
+engine.onEnd = (result) => {
   app.classList.remove('is-playing');
   requestAnimationFrame(() => scene.resize());
   input.reset();
@@ -202,9 +254,11 @@ engine.onEnd = (stats) => {
   sound.stopBgm();
   wasCharging = false;
   wasFeverActive = false;
+  tutorial.hide();
+  flowTransition.hide();
   hud.hide();
   title.hide();
-  receipt.show(stats);
+  receipt.show(result);
   sound.play('receipt');
   sound.playVoice('end');
 };
@@ -223,6 +277,8 @@ window.addEventListener('resize', () => scene.resize());
 
 title.show();
 hud.hide();
+tutorial.hide();
+flowTransition.hide();
 receipt.hide();
 leaderboard.hide();
 syncSoundButtons();
@@ -239,6 +295,7 @@ function frame(now: number): void {
   const snapshot = engine.getSnapshot();
   scene.update(dt, snapshot);
   hud.update(snapshot);
+  tutorial.update(snapshot);
 
   const charging = snapshot.mode === 'playing' && snapshot.charging !== null;
   if (charging && !wasCharging) sound.startCharge();
